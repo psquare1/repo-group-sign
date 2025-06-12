@@ -33,6 +33,23 @@ async function getUserPublicKeys(username) {
     }
 }
 
+// Function to determine key type
+function getKeyType(keyString) {
+    if (keyString.startsWith('ssh-rsa')) return 'RSA';
+    if (keyString.startsWith('ssh-ed25519')) return 'ED25519';
+    if (keyString.startsWith('ecdsa-sha2-nistp256')) return 'ECDSA';
+    if (keyString.startsWith('ssh-dss')) return 'DSA';
+    return 'UNKNOWN';
+}
+
+// Function to filter out non-RSA keys
+function filterRSAKeys(publicKeys) {
+    return publicKeys.filter(key => {
+        const keyType = getKeyType(key.key);
+        return keyType === 'RSA';
+    });
+}
+
 async function scrapeRepositoryPublicKeys(repoUrl) {
     // Extract owner and repo from URL
     const [owner, repo] = repoUrl.split('/').slice(-2);
@@ -57,14 +74,20 @@ async function scrapeRepositoryPublicKeys(repoUrl) {
         const username = contributor.login;
         const publicKeys = await getUserPublicKeys(username);
         if (publicKeys.length > 0) {
-            results.contributors[username] = {
-                contributions: contributor.contributions,
-                publicKeys: publicKeys.map(key => ({
-                    id: key.id,
-                    key: key.key,
-                    title: key.title
-                }))
-            };
+            // Filter for RSA keys only
+            // TODO: Expand functionality to include other key types
+            const rsaKeys = filterRSAKeys(publicKeys);
+            if (rsaKeys.length > 0) {
+                results.contributors[username] = {
+                    contributions: contributor.contributions,
+                    publicKeys: rsaKeys.map(key => ({
+                        id: key.id,
+                        key: key.key,
+                        title: key.title,
+                        type: getKeyType(key.key)  // Add key type to output
+                    }))
+                };
+            }
         }
     }
     
