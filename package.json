@@ -2,12 +2,13 @@
   "name": "github-public-key-scraper",
   "version": "1.0.0",
   "description": "Scrapes public keys from GitHub repository contributors",
-  "main": "github_scraper.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node github_scraper.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "@octokit/rest": "^19.0.7",
-    "axios": "^1.4.0"
+    "axios": "^1.4.0",
+    "express": "^4.18.2"
   }
 } 

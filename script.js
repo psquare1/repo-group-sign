@@ -2,37 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const generateProofButton = document.getElementById('generateProof');
     const expandableSections = document.getElementById('expandableSections');
     const contributorsContent = document.getElementById('contributorsContent');
-
-    // Sample data - replace this with actual data from your backend
-    const sampleData = {
-        repository: {
-            owner: "example",
-            repo: "sample-repo",
-            url: "https://github.com/example/sample-repo"
-        },
-        contributors: {
-            "user1": {
-                contributions: 42,
-                publicKeys: [
-                    {
-                        id: "key1",
-                        key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC...",
-                        title: "Work Laptop"
-                    }
-                ]
-            },
-            "user2": {
-                contributions: 15,
-                publicKeys: [
-                    {
-                        id: "key2",
-                        key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC...",
-                        title: "Home Computer"
-                    }
-                ]
-            }
-        }
-    };
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const repoUrlInput = document.getElementById('repoUrl');
 
     function displayContributors(data) {
         let html = '';
@@ -57,14 +28,48 @@ document.addEventListener('DOMContentLoaded', function() {
         contributorsContent.innerHTML = html;
     }
 
-    generateProofButton.addEventListener('click', function() {
-        // Show the expandable sections
-        expandableSections.style.display = 'block';
+    generateProofButton.addEventListener('click', async function() {
+        const repoUrl = repoUrlInput.value.trim();
         
-        // Display the contributors data
-        displayContributors(sampleData);
-        
-        // Scroll to the expandable sections
-        expandableSections.scrollIntoView({ behavior: 'smooth' });
+        if (!repoUrl) {
+            alert('Please enter a repository URL');
+            return;
+        }
+
+        // Show loading spinner
+        loadingSpinner.style.display = 'block';
+        expandableSections.style.display = 'none';
+
+        try {
+            // Call the backend API
+            const response = await fetch('/fetch-repo-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ repoUrl })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to fetch repository data');
+            }
+
+            const data = await response.json();
+            
+            // Display the contributors data
+            displayContributors(data);
+            
+            // Show the expandable sections
+            expandableSections.style.display = 'block';
+            
+            // Scroll to the expandable sections
+            expandableSections.scrollIntoView({ behavior: 'smooth' });
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            // Hide loading spinner
+            loadingSpinner.style.display = 'none';
+        }
     });
 }); 
