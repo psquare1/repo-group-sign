@@ -2,13 +2,13 @@
 set -e  # Exit on any error
 
 # Step 1: Compile the circom circuit
-echo "Step 1: Compiling the circom circuit..."
-circom --r1cs --wasm --c --sym --inspect circuit.circom 
-if [ $? -ne 0 ]; then 
-    echo "Error: circom failed."
-    exit 1
-fi
-echo "Step 1 completed."
+#echo "Step 1: Compiling the circom circuit..."
+#circom --r1cs --wasm --c --sym --inspect circuit.circom 
+#if [ $? -ne 0 ]; then 
+#    echo "Error: circom failed."
+#    exit 1
+#fi
+#echo "Step 1 completed."
 
 # Step 2: Setup Groth16 proving system
 echo "Step 2: Running snarkjs groth16 setup..."

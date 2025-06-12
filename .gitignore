@@ -19,4 +19,22 @@ yarn-error.log
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+
+# Circom and snarkjs generated files
+*.wasm
+*.r1cs
+*.ptau
+*.zkey
+*.sym
+*.sig
+key.pub
+key
+message.txt
+circuit_js/
+circuit_cpp/
+verification_key.json
+Now
+
+Add an Emoji, Sticker, or GIF
+
