@@ -1,11 +1,12 @@
-const fs = require('fs').promises;
-const { parseRSAPublicKey, splitBigIntToChunks } = require('./temporary_rsakey_parser.js');
-const { hashArray, merkleTree } = require('./merkle');
+
+//const { parseRSAPublicKey, splitBigIntToChunks } = require('./temporary_rsakey_parser.js');
+//const { hashArray, merkleTree } = require('./merkle');
 
 
 function processKeysAndBuildMerkleTree(data) {
     try {
         // Extract all RSA keys from the data
+        // TODO: Expand functionality to include other key types
         const rsaKeys = Object.values(data.contributors).flatMap(contributor => 
             contributor.publicKeys
                 .filter(key => key.type === 'RSA')
@@ -22,26 +23,20 @@ function processKeysAndBuildMerkleTree(data) {
                 const parsedKey = parseRSAPublicKey(key);
                 const keyArray = splitBigIntToChunks(parsedKey);
                 
-                const hashedKey = hashArray(keyArray);
+                const currentHashedKey = hashArray(keyArray);
                 console.log(`Hashed RSA Key ${index + 1}:`);
-                console.log(hashedKey);
+                console.log(currentHashedKey);
                 
-                hashedKeys.push(hashedKey);
+                hashedKeys.push(currentHashedKey);
             } catch (error) {
                 console.error(`Error processing key ${index + 1}: ${error.message}`);
             }
         });
-
-        console.log(`\nSuccessfully processed ${hashedKeys.length} keys`);
-
-        console.log("HEREE:",hashedKeys)
-
         // Build the Merkle tree
         const merkleRoot = merkleTree(hashedKeys);
-
         return {
-            merkleRoot,
-            processedKeys: hashedKeys
+            root: merkleRoot,
+            keys:hashedKeys
         };
     } catch (error) {
         console.error('Error processing keys and building Merkle tree:', error);
@@ -49,25 +44,14 @@ function processKeysAndBuildMerkleTree(data) {
     }
 }
 
-// Example usage
-if (require.main === module) {
-    const jsonFilePath = process.argv[2];
-    if (!jsonFilePath) {
-        console.error('Please provide a JSON file path');
-        process.exit(1);
+function processMerkleProof(merkleRoot, hashedKey, hashedKeys) {
+    const [calculatedMerkleProof, merkleDirectionsTF] = merkleProof(merkleRoot, hashedKey, hashedKeys.indexOf(hashedKey));
+    const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
+    return {
+        proof: calculatedMerkleProof,
+        merkleDirections: merkleDirections
     }
-
-    processKeysAndBuildMerkleTree(jsonFilePath)
-        .then(result => {
-            console.log('\nMerkle Root:', result.merkleRoot);
-            console.log(`\nProcessed ${result.processedKeys} out of ${result.totalKeys} RSA keys`);
-        })
-        .catch(error => {
-            console.error('Failed to process keys:', error);
-            process.exit(1);
-        });
 }
 
-module.exports = {
-    processKeysAndBuildMerkleTree
-}; 
+window.processKeysAndBuildMerkleTree = processKeysAndBuildMerkleTree;
+window.processMerkleProof = processMerkleProof;

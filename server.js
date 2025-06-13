@@ -9,7 +9,7 @@ const port = 3001;
 
 // Middleware to parse JSON bodies
 app.use(express.json());
-app.use(express.static('.')); // Serve static files from current directory
+app.use(express.static(__dirname)); // Serve static files from current directory
 
 // Endpoint to fetch repository data
 app.post('/fetch-repo-data', async (req, res) => {
@@ -57,6 +57,29 @@ app.post('/fetch-repo-data', async (req, res) => {
     } catch (error) {
         console.error('Error running scraper:', error);
         res.status(500).json({ error: 'Failed to run scraper' });
+    }
+});
+
+// Endpoint to verify proof
+app.post('/verify-proof', async (req, res) => {
+    const { proof, message, repoUrl } = req.body;
+    
+    if (!proof || !message || !repoUrl) {
+        return res.status(400).json({ error: 'Proof, message, and repository URL are required' });
+    }
+
+    console.log('Received verification request for repo:', repoUrl);
+
+    try {
+        // This is a placeholder implementation that always returns true
+        // In the actual implementation, this would verify the proof
+        console.log('Verifying proof:', proof);
+        console.log('Message:', message);
+        
+        res.json({ verified: true });
+    } catch (error) {
+        console.error('Error verifying proof:', error);
+        res.status(500).json({ error: 'Failed to verify proof' });
     }
 });
 
