@@ -1,6 +1,8 @@
 pragma circom 2.1.6;
 
 include "bigint_modules/bigint.circom";
+include "node_modules/circomlib/circuits/poseidon.circom";
+include "node_modules/circomlib/circuits/mux1.circom";
 
 // multiplies an array of r numbers modulo m
 template MultiplyArrayModM(n, k, r) {
@@ -69,29 +71,62 @@ template ExponentiateModM(n, k, d) {
     out <== multArray.out;
 }
 
+
+
+template PoseidonArray(size) {
+    signal input in[size];
+    signal output out;
+
+    // Here size may be larger than 14, the max size of Poseidon function.
+    // So we need to use a loop to hash the array
+    signal hval[size];
+    hval[0] <== Poseidon(2)([0, in[0]]);
+    for (var i = 1; i < size; i++) {
+        hval[i] <== Poseidon(2)([hval[i-1], in[i]]);
+    }
+    out <== hval[size-1];
+}
+
+template VerifyMerkleProof(size) {
+    signal input proof[size];
+    signal input directions[size];
+    signal input root;
+    signal input val;
+    signal hval[size+1];
+    signal out;
+    hval[0] <== val;
+
+    signal hval_selector[size][2];
+    for (var i = 0; i < size; i++) {
+        hval_selector[i][0] <== Poseidon(2)([hval[i], proof[i]]);
+        hval_selector[i][1] <== Poseidon(2)([proof[i], hval[i]]);
+        hval[i+1] <== Mux1()(hval_selector[i], directions[i]);
+    }
+
+    out <== hval[size];
+    out === root;
+}
+
+
 // proves that user knows an RSA signature for a message, given l public keys (i.e. values of n)
-template GroupSignature(n, k, l) {
+template GroupSignature(n, k, l, proofSize) {
     var d = 65537;
     signal input message[k];
-    signal input keys[l][k];
+    signal input merkleRoot;
+    signal input treeProofs[proofSize];
+    signal input treeDirections[proofSize];
     signal input signature[k];
     signal input correctKey[k];
+    signal val;
     signal equal[l]; // helper to check if correctKey is in the list of keys
     signal accum[l]; // helper to check if correctKey is in the list of keys
     signal keyValid;
     signal power[k];
     signal keyWorks;
+
+    val <== PoseidonArray(k)(in <== correctKey);
+    VerifyMerkleProof(proofSize)(proof <== treeProofs, directions <== treeDirections, root <== merkleRoot, val <== val);
     
-    // checks that correctKey is in the list of keys
-    for (var i = 0; i < l; i++) {
-        equal[i] <== BigIsEqual(k)([keys[i], correctKey]);
-    }
-    accum[0] <== 1 - equal[0];
-    for (var i = 1; i < l; i++) {
-        accum[i] <== accum[i-1] * (1-equal[i]);
-    }
-    keyValid <== 1-accum[l-1];
-    keyValid === 1;
     
     // checks that correctKey is compatible with the signature and message
     power <== ExponentiateModM(n, k, d)(a <== signature, m <== correctKey);
@@ -100,4 +135,4 @@ template GroupSignature(n, k, l) {
 }
 
 
-component main {public [message, keys, signature, correctKey]} = GroupSignature(120, 35, 100);
+component main {public [message, merkleRoot]} = GroupSignature(120, 35, 100, 3);
