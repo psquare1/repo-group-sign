@@ -1,6 +1,5 @@
-import { poseidon2 } from "poseidon-lite/poseidon2";
-// Use global poseidon2 from CDN
-//const poseidon2 = window.Poseidon2;
+//const { poseidon2 } = require('poseidon-lite');
+import { poseidon2 } from 'poseidon-lite';
 
 const MAX_SIZE = 7;
 
@@ -117,10 +116,10 @@ function verifyMerkleProof(tree, val, proof, directions) {
 
     return hval === tree.data;
 }
-
-// Make functions available globally
-window.hashArray = hashArray;
-window.merkleTree = merkleTree;
-window.merkleProof = merkleProof;
-window.editMerkleTree = editMerkleTree;
-window.verifyMerkleProof = verifyMerkleProof;
+/*
+module.exports = {
+    hashArray,
+    merkleTree,
+    merkleProof,
+    verifyMerkleProof
+}; */

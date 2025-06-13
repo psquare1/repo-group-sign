@@ -1,16 +1,25 @@
 {
-  "name": "github-public-key-scraper",
+  "name": "repo-group-sign",
   "version": "1.0.0",
-  "description": "Scrapes public keys from GitHub repository contributors",
-  "main": "server.js",
+  "description": "Group Signature Generator",
+  "main": "script.js",
   "scripts": {
-    "start": "node server.js"
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch"
   },
   "dependencies": {
-    "@octokit/rest": "^19.0.7",
-    "axios": "^1.4.0",
-    "circomlib": "^2.0.5",
-    "express": "^4.18.2",
-    "poseidon-lite": "^0.3.0"
+    "@octokit/rest": "^22.0.0",
+    "@zkpassport/poseidon2": "^0.6.1",
+    "axios": "^1.9.0",
+    "child_process": "^1.0.2",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7",
+    "poseidon2": "^0.4.2"
+  },
+  "devDependencies": {
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
   }
 }
