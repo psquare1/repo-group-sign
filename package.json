@@ -12,11 +12,13 @@
     "@zkpassport/poseidon2": "^0.6.1",
     "axios": "^1.9.0",
     "child_process": "^1.0.2",
+    "circomlib": "^2.0.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",
-    "poseidon2": "^0.4.2"
+    "poseidon2": "^0.4.2",
+    "snarkjs": "^0.7.5"
   },
   "devDependencies": {
     "webpack": "^5.89.0",

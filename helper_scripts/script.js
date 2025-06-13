@@ -1,3 +1,4 @@
+import { groth16 } from "snarkjs";
 document.addEventListener('DOMContentLoaded', function() {
     const generateProofButton = document.getElementById('generateProof');
     const expandableSections = document.getElementById('expandableSections');
@@ -51,25 +52,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to process and display message
     async function processMessage(message) {
         if (!message) {
-            messageDisplaySection.style.display = 'none';
             return;
         }
         let messageChunks;
         try {
-            // Display raw message
-            rawMessage.textContent = message;
-            
-            // Convert message to BigInt and display
+            // Convert message to BigInt and log to console
             const messageAsBigInt = await messageToBigInt(message);
-            messageBigInt.textContent = formatHexString(bigIntToHex(messageAsBigInt));
-            messageChunks 
-            messageDisplaySection.style.display = 'block';
+            console.log('Message:', message);
+            console.log('Message as BigInt:', formatHexString(bigIntToHex(messageAsBigInt)));
+            messageChunks = splitBigIntToChunks(messageAsBigInt);
         } catch (error) {
             console.error('Error processing message:', error);
             messageChunks = [];
-            rawMessage.textContent = 'Error: ' + error.message;
-            messageBigInt.textContent = '';
-            messageDisplaySection.style.display = 'block';
         }
         return messageChunks;
     }
@@ -77,30 +71,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to process and display signature
     function processSignature(signature) {
         if (!signature) {
-            parsedSignatureSection.style.display = 'none';
             return;
         }
         let parsedSignatureChunks;
         try {
-
             const parsed = parseSSHSignature(signature);
             console.log('Parsed signature:', parsed);
             
-            // Display the parsed signature details in hex
+            // Log the parsed signature details to console
             parsedSignatureChunks = {
                 signature: splitBigIntToChunks(parsed.signature),
                 publicKey: splitBigIntToChunks(parsed.publicKey),
             };
-            parsedPublicKey.textContent = formatHexString(bigIntToHex(parsed.publicKey));
-            parsedSignature.textContent = formatHexString(bigIntToHex(parsed.signature));
-            parsedSignatureSection.style.display = 'block';
+            console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
+            console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
         } catch (error) {
             console.error('Error parsing signature:', error);
-            // Show error in the UI
             parsedSignatureChunks = [];
-            parsedPublicKey.textContent = 'Error: ' + error.message;
-            parsedSignature.textContent = '';
-            parsedSignatureSection.style.display = 'block';
         }   
         return parsedSignatureChunks;
     }
@@ -160,13 +147,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     })
                 ).filter(chunks => chunks.length > 0); // Remove any empty arrays from failed parses
-                const totalKeys = 100;
+                const totalKeys = 7;
                 console.log('All public key chunks:', allPublicKeyChunks);
                 if (allPublicKeyChunks.length > totalKeys) {
                 throw new Error(`Too many keys: maximum allowed is ${totalKeys}`);
-                }
-                while (allPublicKeyChunks.length < totalKeys) {
-                    allPublicKeyChunks.push(allPublicKeyChunks[allPublicKeyChunks.length - 1]);
                 }
             } catch (error) {
                 console.error('Error creating public key chunks:', error);
@@ -195,22 +179,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const [calculatedMerkleProof, merkleDirectionsTF] = await merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
             const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
-        
+            console.log(verifyMerkleProof(merkleTreeRoot, hashedKey, calculatedMerkleProof, merkleDirectionsTF));
             const { proof, publicSignals } =
-                await snarkjs.groth16.fullProve({
+                await groth16.fullProve({
                     message: parsedHashedMessage,
                     treeProofs: calculatedMerkleProof,
                     treeDirections: merkleDirections,
                     signature: parsedSignature,
-                    correctKey: parsedPublicKey}, "circuit_js/circuit.wasm", "circuit_final.zkey");
+                    correctKey: parsedPublicKey,
+                    merkleRoot: merkleTreeRoot.data,
+                }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 
             proofComponent.innerHTML = JSON.stringify(proof, null, 1);
 
-            const vkey = await fetch("verification_key.json").then( function(res) {
+            const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
                 return res.json();
             });
 
-            await snarkjs.groth16.verify(vkey, publicSignals, proof);
+            await groth16.verify(vkey, publicSignals, proof);
             
             // Scroll to the expandable sections
             expandableSections.scrollIntoView({ behavior: 'smooth' });
@@ -224,8 +210,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     fillDefaultsButton.addEventListener('click', function() {
-        repoUrlInput.value = 'https://github.com/The-Turtle/0xparc-week-1';
+        repoUrlInput.value = 'https://github.com/psquare1/repo-group-sign';
         messageInput.value = '0xPARC';
-        signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAJJi1WywAy7izdX7fADbjLxQJeoYIMm02pMOi6jrwpRN0zbHKrDsn9wK+OV7cyckAqf3vmdW9v6wZZ7VdEtvrAImonh7Nv5X1NzWOs7A0tQYSJFsjUxHzRIe+Wxj3A0231TsTOoPwYtfCmCuNtofJKxpHb1mPq51p9N0ec1WxvYUc1LOTk1q51yBSFxTFJOmQWEYURN3Gd+udnh+quwIeKdmNTYVM+qoIjb//u8ErODwA/DZ7lvFfaos/v1hKlRaCV1/zXSt/9xxfLDtFPWJgj7EWy7WOSh9cjx2L6qiHiwpn/uw+EN1bPYSnbbL0vqtSEdvHjZHYtFX4ooLGqP0Zpzy6T9gDd+vWq2xWIBewR3w6q0KDalTQwDyb0k0PAuqYjMko6qMUieofsw8+cfEENfKbhHYOHQSho9FTYVn5m3MWBgFsv/f1vmOPURa5oYiRKFthOdjXAqnHVkTH2+m7IBw/d0TfsUM5rw6oe/oSXbo20T1qRsv8AZWJh941PI9OAc4vydMXpz9pDHPP2nXC1E/JgpG7H28npjNAwREj/LlTU1OjZcC5TUkDt/39hogc91bV++0TD/3l2vt97EJ4lbYBQvjVxnTVs4hqE9O4S219m5QzQtx459Ga9bRcAC7Rzg8/qt09geGWyf0y4xNsTnHLA+kf8sxOtaK+nGzz7MRAAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAGhJDy15QzBMNbEp1KrsuyGYFaI0y3vKrIRfbxv03N+qV2AJwZXsTYc+LGcD53TH0xmE/ixo4zJFYvAqqL6o7+5D97pCszWJcKmPG2QvpO4fu0mJLVwgw2bEO/iVL3JsMMqKCegDzC3byqDv44NT3OltWtQRdaxYpGGsNQJ4j1D95iBJ85ua4oy1MdGgImD+fI+RPxZ+GZWHhfiHUDUxhmrRX7g+JXT2igE5ny6llLe/HEpkaGwS1eiov36ZQNlrwsWIkdi1MoWx9xiXrHeLoSqh8m8I7Qsf6xYZqcZ97eotgrrcvMP00sWs17+JzLR6spEx3czMpP/ZR8CBOSy2pflZd+0gRgt8lNNmE71YptUdfw5RK/+NYULDc90KdAyw3D4RW0eWmwjN1GZphTZUWTyOsd2shJTTeZg+PUc2OCvEP4Okcfg63yzgAMCUk0OBCZVc4JtvfNRFKCkXKFYYK3EP7k8fjfC70iTVxu1d6oWfg670zgAssTWXvc2gstRyFfNdSv+AAYbNCtf3AF/OwIydqBpv2PxJfTse22OJwNuppQ7R9XOIyFprp5eFfRSKXm6fOwPLsE4uIqvxs7EQQ10SNzWae2B6bh1rPZKnVxFP34UKrHdc0HYV/Hy3AcSGTJNTSlhuV/ajAD75s+HmOlsJE0L2wrSvl/dMPPtcpcoI`; // Example base64, replace with a real one if needed
+        signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/Wz
+BvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMj
+qSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZc
+Mx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3
+lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3Y
+aZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hl
+tAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79
+Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+
+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l
+5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk
+78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAA
+AMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMd
+Zw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFE
+cI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTO
+oXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEd
+Jh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW
++u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHk
+KlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5
+N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+
+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1
+iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEb
+Hue5Ug`; // Example base64, replace with a real one if needed
     });
 }); 

@@ -1,10 +1,12 @@
-//const { poseidon2 } = require('poseidon-lite');
-import { poseidon2 } from 'poseidon-lite';
-
+import { poseidon2 } from "poseidon-lite/poseidon2";
+// Use global poseidon2 from CDN
+//const poseidon2 = window.Poseidon2;
+// MAX_SIZE should be 2^k - 1 for some k
 const MAX_SIZE = 7;
 
 function hashArray(input, size = 35) {
     var hval = "0";
+    console.log('Input array:', input);
     for (var i = 0; i < input.length; i++) {
         hval = poseidon2([hval, input[i]]).toString();
     }
@@ -46,7 +48,7 @@ class MerkleNode {
  */
 function merkleTree(data) {
     // Create a merkle tree from the data
-    const tree = new MerkleNode(data, 0, MAX_SIZE, is_root = true);
+    const tree = new MerkleNode(data, 0, MAX_SIZE, true);
     return tree;
 }
 
@@ -116,10 +118,10 @@ function verifyMerkleProof(tree, val, proof, directions) {
 
     return hval === tree.data;
 }
-/*
-module.exports = {
-    hashArray,
-    merkleTree,
-    merkleProof,
-    verifyMerkleProof
-}; */
+
+// Make functions available globally
+window.hashArray = hashArray;
+window.merkleTree = merkleTree;
+window.merkleProof = merkleProof;
+window.editMerkleTree = editMerkleTree;
+window.verifyMerkleProof = verifyMerkleProof;

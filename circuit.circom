@@ -109,7 +109,7 @@ template VerifyMerkleProof(size) {
 
 
 // proves that user knows an RSA signature for a message, given l public keys (i.e. values of n)
-template GroupSignature(n, k, l, proofSize) {
+template GroupSignature(n, k, proofSize) {
     var d = 65537;
     signal input message[k];
     signal input merkleRoot;
@@ -118,8 +118,6 @@ template GroupSignature(n, k, l, proofSize) {
     signal input signature[k];
     signal input correctKey[k];
     signal val;
-    signal equal[l]; // helper to check if correctKey is in the list of keys
-    signal accum[l]; // helper to check if correctKey is in the list of keys
     signal keyValid;
     signal power[k];
     signal keyWorks;
@@ -131,8 +129,8 @@ template GroupSignature(n, k, l, proofSize) {
     // checks that correctKey is compatible with the signature and message
     power <== ExponentiateModM(n, k, d)(a <== signature, m <== correctKey);
     keyWorks <== BigIsEqual(k)([power, message]);
-    keyWorks === 1;
+    keyWorks === 1;    
 }
 
 
-component main {public [message, merkleRoot]} = GroupSignature(120, 35, 100, 3);
+component main {public [message, merkleRoot]} = GroupSignature(120, 35, 3);

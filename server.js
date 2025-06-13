@@ -6,6 +6,7 @@ const fs = require('fs').promises;
 const app = express();
 const port = 3001;
 
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(express.static('.')); // Serve static files from current directory

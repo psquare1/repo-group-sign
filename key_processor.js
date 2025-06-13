@@ -2,11 +2,9 @@ const fs = require('fs').promises;
 const { parseRSAPublicKey, splitBigIntToChunks } = require('./temporary_rsakey_parser.js');
 const { hashArray, merkleTree } = require('./merkle');
 
-async function processKeysAndBuildMerkleTree(jsonFilePath) {
+
+function processKeysAndBuildMerkleTree(data) {
     try {
-        // Read and parse the JSON file
-        const data = JSON.parse(await fs.readFile(jsonFilePath, 'utf8'));
-        
         // Extract all RSA keys from the data
         const rsaKeys = Object.values(data.contributors).flatMap(contributor => 
             contributor.publicKeys
@@ -43,8 +41,7 @@ async function processKeysAndBuildMerkleTree(jsonFilePath) {
 
         return {
             merkleRoot,
-            totalKeys: rsaKeys.length,
-            processedKeys: hashedKeys.length
+            processedKeys: hashedKeys
         };
     } catch (error) {
         console.error('Error processing keys and building Merkle tree:', error);
