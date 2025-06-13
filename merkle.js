@@ -6,6 +6,7 @@ const MAX_SIZE = 7;
 
 function hashArray(input, size = 35) {
     var hval = "0";
+    console.log('Input array:', input);
     for (var i = 0; i < input.length; i++) {
         hval = poseidon2([hval, input[i]]).toString();
     }
@@ -47,7 +48,7 @@ class MerkleNode {
  */
 function merkleTree(data) {
     // Create a merkle tree from the data
-    const tree = new MerkleNode(data, 0, MAX_SIZE, is_root = true);
+    const tree = new MerkleNode(data, 0, MAX_SIZE, true);
     return tree;
 }
 

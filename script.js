@@ -141,47 +141,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
             
-            // Create array of arrays, where each inner array contains chunks from a single public key
-            const allPublicKeyChunks = Object.values(data.contributors).flatMap(contributor => 
-                contributor.publicKeys.map(key => {
-                    try {
-                        const parsedKey = parseRSAPublicKey(key.key);
-                        return splitBigIntToChunks(parsedKey);
-                    } catch (error) {
-                        console.error(`Error parsing key for ${contributor.username}:`, error);
-                        return [];
-                    }
-                })
-            ).filter(chunks => chunks.length > 0); // Remove any empty arrays from failed parses
-            const totalKeys = 100;
-            if (allPublicKeyChunks.length > totalKeys) {
-            throw new Error(`Too many keys: maximum allowed is ${totalKeys}`);
-            }
-            while (allPublicKeyChunks.length < totalKeys) {
-                allPublicKeyChunks.push(allPublicKeyChunks[allPublicKeyChunks.length - 1]);
-            }
+            // Display contributors immediately after fetching data
+            displayContributors(data);
+            expandableSections.style.display = 'block';
             
+            let allPublicKeyChunks;
+            try {
+            // Create array of arrays, where each inner array contains chunks from a single public key
+                allPublicKeyChunks = Object.values(data.contributors).flatMap(contributor => 
+                    contributor.publicKeys.map(key => {
+                        try {
+                            const parsedKey = parseRSAPublicKey(key.key);
+                            console.log('parsed key from contributors:', formatHexString(bigIntToHex(parsedKey)));
+                            return splitBigIntToChunks(parsedKey);
+                        } catch (error) {
+                            console.error(`Error parsing key for ${contributor.username}:`, error);
+                            return [];
+                        }
+                    })
+                ).filter(chunks => chunks.length > 0); // Remove any empty arrays from failed parses
+                const totalKeys = 100;
+                console.log('All public key chunks:', allPublicKeyChunks);
+                if (allPublicKeyChunks.length > totalKeys) {
+                throw new Error(`Too many keys: maximum allowed is ${totalKeys}`);
+                }
+                while (allPublicKeyChunks.length < totalKeys) {
+                    allPublicKeyChunks.push(allPublicKeyChunks[allPublicKeyChunks.length - 1]);
+                }
+            } catch (error) {
+                console.error('Error creating public key chunks:', error);
+                throw new Error('Failed to create public key chunks');
+            }
             console.log(parsedHashedMessage, parsedSignature, parsedPublicKey);
             console.log('All public key chunks:', allPublicKeyChunks);
-            let hashedKeys;
+            const hashedKeys = allPublicKeyChunks.map(key => hashArray(key));
+            // try {
+            //     const keyValuePairs = await Promise.all(
+            //         allPublicKeyChunks.map(async key => [key, await hashArray(key)])
+            //     );
+            //     hashedKeys = new Map(keyValuePairs);
+            // } catch (error) {
+            //     console.error('Error hashing keys:', error);
+            //     throw new Error('Failed to hash public keys');
+            // }
+            const merkleTreeRoot = await merkleTree(hashedKeys);
+            let hashedKey;
             try {
-                const keyValuePairs = await Promise.all(
-                    allPublicKeyChunks.map(async key => [key, await hashArray(key)])
-                );
-                hashedKeys = new Map(keyValuePairs);
+                console.log('parsedPublicKey:', parsedPublicKey);
+                hashedKey = hashArray(parsedPublicKey);
             } catch (error) {
-                console.error('Error hashing keys:', error);
-                throw new Error('Failed to hash public keys');
+                console.error('Error hashing key:', error);
+                throw new Error('Failed to hash key');
             }
-            const merkleTreeRoot = merkleTree(hashedKeys);
-            const hashedKey = hashArray(parsedSignature.publicKey);
-            const [merkleProof, merkleDirectionsTF] = merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
+            const [calculatedMerkleProof, merkleDirectionsTF] = await merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
             const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
-
+        
             const { proof, publicSignals } =
                 await snarkjs.groth16.fullProve({
                     message: parsedHashedMessage,
-                    treeProofs: merkleProof,
+                    treeProofs: calculatedMerkleProof,
                     treeDirections: merkleDirections,
                     signature: parsedSignature,
                     correctKey: parsedPublicKey}, "circuit_js/circuit.wasm", "circuit_final.zkey");
@@ -193,11 +211,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             await snarkjs.groth16.verify(vkey, publicSignals, proof);
-            // Display the contributors data
-            displayContributors(data);
-            
-            // Show the expandable sections
-            expandableSections.style.display = 'block';
             
             // Scroll to the expandable sections
             expandableSections.scrollIntoView({ behavior: 'smooth' });
@@ -211,29 +224,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     fillDefaultsButton.addEventListener('click', function() {
-        repoUrlInput.value = 'https://github.com/TritonDataCenter/node-sshpk';
-        messageInput.value = 'Hello, World';
-        signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAN3BiNA0ZFp4XZsN3M+E9C
-44a/T6mSkZiMfB+y8n7bBVuhGAa0peaboPt2ZM3tapfZ8xFFwe/nCWtxxvgkowMuLoEI4i
-QODNT/uyJhvUSuYU8vH/eVtDdjp4ZBYtwCmHExIzRcpdJgyE7HRxEg155U4+awJ5Zdc8uw
-D6Hax9+Wey/rMnBYQHCE2Sw3BZDSy+9cR/2oyu/MKNWU1yGwrZC6sxOuezAsqtfu7GF8n5
-jc+gIgheNtEK8vsobJ/WPQO3v0TmC6wYT7Y4hG/lWtGKs4cpz0jL1etyl2yVPghYzLskqA
-Fk62v2ZLQoIto4oJxM0eh/TDUKVCP0MvsWYy1OVHaKxhPK2nXKGZFltKihIbMAlWIMwDA3
-VQ2P/KHsdevH49Sw1smH3UViHzT5OJhumfOOuG645JNP2FIq41KVJPJLI7hUytKy85VBoz
-mY6eeg6fQ26mxS8GXdwouWRNkseu+vPCKlf9A4Sp6MOVSMGR4hrclPNjszH1yFXZTdH9Ay
-xE/XcCSWEelhPtWEi/RzPJfHYPvFaNDcGlRDeiBpoWkJzx6F/ljHKK7AgZABrG3Qjp1F4v
-CGWQJZYc23l4wBXo98gRe2tUdX1bJI0N739XgGQBU5FxNN1n4flHJC64IyYfJ9KuWGaaXa
-MrAtgV9N4w5+BZq7wxOzVHnTVkozjAsNAAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAA
-AMcnNhLXNoYTItNTEyAAACAM4QAdCdxWyw2DwWejDJV55RE+2Ddu8dYJwfhYZCJa/NAeZw
-ICFxiRY4plomoIp+b0+amKq+wf8yTneXcGfG41Bn00/pttVG9CRmemiXUdTOzm0MnT9Oht
-PO8/9ubC5laTFZgj2R+vtIVIV9P08xVEITT3cl2HbK6ImcZsoHIARXilagzhGOXaSLdAQh
-86lR4UzR4H1flVPswvyreIa73kqG3AAdVXG550mv7AaqJU/2GO3xCkKiAn9UMaEemfTho+
-DRiWuIJjc7JSZtnxV1lZTrVDilXYzchEYsXUBzgHCKoQC+QOkfDmCi+T5/JO64vHBuQrOP
-PWdzVEUojpjREeMzICzg89bkCqx3xRBZfYW2JebEotTME2r6D5PyOUJti8vL12kOUOnfA2
-vDv5nZjKcJiYDsm25Rw39bcN7ow4UWwifhlZJ65W+CliuYNUfu6t634CNFJHUTnlc/HaQI
-2Nc/1BYo4UaUklWMY8oQQd87g6sWkUDhzdcxakFBKL7NyqLWLnSg+Sd4fTW5BsUO2ygdb0
-yoKrnMAGHHNQuJfPY416b1Ere+Fg6vJk9SmXLEBBraSYQ2ayr749PXA9bGnekiNgQ6rj5A
-PiC1V4NDqgesvN7CMv9D+KI3P3xjX8rB8iw2lfiiZ6vIW/q87L1wPVfJB2e3t+KbDrpBTW
-OAqPXv`; // Example base64, replace with a real one if needed
+        repoUrlInput.value = 'https://github.com/The-Turtle/0xparc-week-1';
+        messageInput.value = '0xPARC';
+        signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAJJi1WywAy7izdX7fADbjLxQJeoYIMm02pMOi6jrwpRN0zbHKrDsn9wK+OV7cyckAqf3vmdW9v6wZZ7VdEtvrAImonh7Nv5X1NzWOs7A0tQYSJFsjUxHzRIe+Wxj3A0231TsTOoPwYtfCmCuNtofJKxpHb1mPq51p9N0ec1WxvYUc1LOTk1q51yBSFxTFJOmQWEYURN3Gd+udnh+quwIeKdmNTYVM+qoIjb//u8ErODwA/DZ7lvFfaos/v1hKlRaCV1/zXSt/9xxfLDtFPWJgj7EWy7WOSh9cjx2L6qiHiwpn/uw+EN1bPYSnbbL0vqtSEdvHjZHYtFX4ooLGqP0Zpzy6T9gDd+vWq2xWIBewR3w6q0KDalTQwDyb0k0PAuqYjMko6qMUieofsw8+cfEENfKbhHYOHQSho9FTYVn5m3MWBgFsv/f1vmOPURa5oYiRKFthOdjXAqnHVkTH2+m7IBw/d0TfsUM5rw6oe/oSXbo20T1qRsv8AZWJh941PI9OAc4vydMXpz9pDHPP2nXC1E/JgpG7H28npjNAwREj/LlTU1OjZcC5TUkDt/39hogc91bV++0TD/3l2vt97EJ4lbYBQvjVxnTVs4hqE9O4S219m5QzQtx459Ga9bRcAC7Rzg8/qt09geGWyf0y4xNsTnHLA+kf8sxOtaK+nGzz7MRAAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAGhJDy15QzBMNbEp1KrsuyGYFaI0y3vKrIRfbxv03N+qV2AJwZXsTYc+LGcD53TH0xmE/ixo4zJFYvAqqL6o7+5D97pCszWJcKmPG2QvpO4fu0mJLVwgw2bEO/iVL3JsMMqKCegDzC3byqDv44NT3OltWtQRdaxYpGGsNQJ4j1D95iBJ85ua4oy1MdGgImD+fI+RPxZ+GZWHhfiHUDUxhmrRX7g+JXT2igE5ny6llLe/HEpkaGwS1eiov36ZQNlrwsWIkdi1MoWx9xiXrHeLoSqh8m8I7Qsf6xYZqcZ97eotgrrcvMP00sWs17+JzLR6spEx3czMpP/ZR8CBOSy2pflZd+0gRgt8lNNmE71YptUdfw5RK/+NYULDc90KdAyw3D4RW0eWmwjN1GZphTZUWTyOsd2shJTTeZg+PUc2OCvEP4Okcfg63yzgAMCUk0OBCZVc4JtvfNRFKCkXKFYYK3EP7k8fjfC70iTVxu1d6oWfg670zgAssTWXvc2gstRyFfNdSv+AAYbNCtf3AF/OwIydqBpv2PxJfTse22OJwNuppQ7R9XOIyFprp5eFfRSKXm6fOwPLsE4uIqvxs7EQQ10SNzWae2B6bh1rPZKnVxFP34UKrHdc0HYV/Hy3AcSGTJNTSlhuV/ajAD75s+HmOlsJE0L2wrSvl/dMPPtcpcoI`; // Example base64, replace with a real one if needed
     });
 }); 
