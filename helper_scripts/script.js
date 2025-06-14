@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Convert message to BigInt and log to console
             const messageAsBigInt = await messageToBigInt(message);
             console.log('Message:', message);
-            console.log('Message as BigInt:', formatHexString(bigIntToHex(messageAsBigInt)));
+            //console.log('Message as BigInt:', formatHexString(bigIntToHex(messageAsBigInt)));
             return splitBigIntToChunks(messageAsBigInt);
         } catch (error) {
             console.error('Error processing message:', error);
@@ -99,14 +99,14 @@ document.addEventListener('DOMContentLoaded', function() {
         let parsedSignatureChunks;
         try {
             const parsed = parseSSHSignature(signature);
-            console.log('Parsed signature:', parsed);
+            //console.log('Parsed signature:', parsed);
             
             parsedSignatureChunks = {
                 signature: splitBigIntToChunks(parsed.signature),
                 publicKey: splitBigIntToChunks(parsed.publicKey),
             };
-            console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
-            console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
+            //console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
+            //console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
         } catch (error) {
             console.error('Error parsing signature:', error);
             parsedSignatureChunks = [];
@@ -114,13 +114,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return parsedSignatureChunks;
     }
 
-    // Function to verify proof (placeholder implementation)
-    async function verifyProof(proof) {
-        // This is a placeholder implementation that always returns true
-        // In the actual implementation, this would verify the proof
-        console.log('Verifying proof:', proof);
-        return true;
-    }
 
     actionButton.addEventListener('click', async function() {
         const repoUrl = repoUrlInput.value.trim();
@@ -161,7 +154,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (isVerifyMode) {
                 // Verify mode
-                const isValid = await verifyProof(input);
+                const proof = JSON.parse(input);
+                console.log(proof);
+                const parsedHashedMessage = await processMessage(message);
+                const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
+                const merkleTreeRoot = processedKeysandMerkleTree.root;
+
+                const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
+                    return res.json();
+                });
+                const publicSignals = [...parsedHashedMessage, merkleTreeRoot.data];
+                
+                console.log(publicSignals);
+                const isValid = await groth16.verify(vkey, publicSignals, proof);
                 resultMessage.textContent = isValid ? 'Proof Verified Successfully!' : 'Proof Verification Failed';
                 resultMessage.className = `alert alert-${isValid ? 'success' : 'danger'} text-center mb-4`;
                 resultMessage.style.display = 'block';
@@ -189,7 +194,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 
                 // Display the proof
-                const proofStr = JSON.stringify(proof, null, 2);
+                const proofStr = JSON.stringify({proof, publicSignals}, null, 2);
+
                 resultMessage.innerHTML = `
                     <div class="alert alert-success text-center mb-4">
                         Proof Generated Successfully!

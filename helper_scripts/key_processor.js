@@ -13,7 +13,7 @@ function processKeysAndBuildMerkleTree(data) {
                 .map(key => key.key)
         );
 
-        console.log(`Found ${rsaKeys.length} RSA keys to process`);
+        //console.log(`Found ${rsaKeys.length} RSA keys to process`);
         
         // Process each RSA key and collect hashed values
         const hashedKeys = [];
@@ -24,8 +24,8 @@ function processKeysAndBuildMerkleTree(data) {
                 const keyArray = splitBigIntToChunks(parsedKey);
                 
                 const currentHashedKey = hashArray(keyArray);
-                console.log(`Hashed RSA Key ${index + 1}:`);
-                console.log(currentHashedKey);
+                //console.log(`Hashed RSA Key ${index + 1}:`);
+                //console.log(currentHashedKey);
                 
                 hashedKeys.push(currentHashedKey);
             } catch (error) {
