@@ -14,6 +14,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultMessage = document.getElementById('resultMessage');
     const fillDefaultsButton = document.getElementById('fillDefaults');
 
+    // Function to auto-resize textarea
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+    }
+
+    // Add input event listeners for auto-resizing
+    messageInput.addEventListener('input', () => autoResizeTextarea(messageInput));
+    signatureInput.addEventListener('input', () => autoResizeTextarea(signatureInput));
+
+    // Initial resize for any pre-filled content
+    autoResizeTextarea(messageInput);
+    autoResizeTextarea(signatureInput);
+
     // Helper function to convert BigInt to hex string
     function bigIntToHex(bigInt) {
         return '0x' + bigInt.toString(16);
@@ -89,6 +103,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         contributorsContent.innerHTML = html;
+        expandableSections.style.display = 'block';
+        
+        // Get the accordion button and collapse element
+        const accordionButton = document.querySelector('.accordion-button');
+        const contributorsCollapse = document.getElementById('contributorsCollapse');
+        
+        // Create a new bootstrap collapse instance if it doesn't exist
+        if (!contributorsCollapse._bsCollapse) {
+            new bootstrap.Collapse(contributorsCollapse, {
+                toggle: false
+            });
+        }
+        
+        // Show the collapse
+        bootstrap.Collapse.getInstance(contributorsCollapse).show();
+        
+        // Update button state
+        accordionButton.classList.add('collapsed');
+        accordionButton.setAttribute('aria-expanded', 'true');
     }
 
     // Function to process and display signature
@@ -194,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 
                 // Display the proof
-                const proofStr = JSON.stringify({proof, publicSignals}, null, 2);
+                const proofStr = JSON.stringify(proof, null, 2);
 
                 resultMessage.innerHTML = `
                     <div class="alert alert-success text-center mb-4">
@@ -259,5 +292,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Generate mode
             signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/WzBvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMjqSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZcMx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3YaZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hltAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMdZw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFEcI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTOoXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEdJh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW+u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHkKlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEbHue5Ug`;
         }
+        
+        // Trigger auto-resize after setting values
+        autoResizeTextarea(messageInput);
+        autoResizeTextarea(signatureInput);
     });
 }); 
