@@ -1,11 +1,11 @@
 [32mtemplate instances[0m: 142
-non-linear constraints: 2428596
-linear constraints: 169730
+non-linear constraints: 2430540
+linear constraints: 171922
 public inputs: 45
 private inputs: 98
 public outputs: 0
-wires: 2582334
-labels: 3144774
+wires: 2586470
+labels: 3150926
 [32mWritten successfully:[0m ./circuit.r1cs
 [32mWritten successfully:[0m ./circuit.sym
 [32mWritten successfully:[0m ./circuit_cpp/circuit.cpp and ./circuit_cpp/circuit.dat

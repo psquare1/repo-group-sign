@@ -33,6 +33,7 @@ if [ $? -ne 0 ]; then
 fi
 echo "Step 3 completed."
 
+
 # Step 4: Export the verification key
 echo "Step 4: Exporting verification key..."
 snarkjs zkey export verificationkey circuit_final.zkey verification_key.json

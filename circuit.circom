@@ -33,12 +33,23 @@ template GroupSignature(n_rsa, k_rsa, proofSize, n_ed25519, k_ed25519) {
     signal msghashVal;
     signal pubKeyInGroup;
     signal msghashInGroup;
+    component pubKeyValComp = PoseidonArray(k_rsa + 2 * k_ed25519);
+    for (var i = 0; i < k_rsa; i++) {
+        pubKeyValComp.in[i] <== correctKey[i];
+    }
+    for (var i = 0; i < k_ed25519; i++) {
+        pubKeyValComp.in[k_rsa + i] <== A[0][i];
+    } 
+    for (var i = 0; i < k_ed25519; i++) {
+        pubKeyValComp.in[k_rsa + k_ed25519 + i] <== A[1][i];
+    }
+
+    // check merkle proof
+    pubKeyVal <== pubKeyValComp.out;
+    pubKeyInGroup <== VerifyMerkleProof(proofSize)(proof <== pubKeyTreeProofs, directions <== pubKeyTreeDirections, root <== pubKeyMerkleRoot, val <== pubKeyVal); 
+    
     //check rsa
     rsaValid <== RSAGroupSignature(n_rsa, k_rsa)(message <== message, signature <== signature, correctKey <== correctKey);
-    
-    // check merkle proof
-    pubKeyVal <== PoseidonArray(k_rsa)(in <== correctKey);
-    pubKeyInGroup <== VerifyMerkleProof(proofSize)(proof <== pubKeyTreeProofs, directions <== pubKeyTreeDirections, root <== pubKeyMerkleRoot, val <== pubKeyVal); 
     
     // check ed22519
     ed25519Works <== ed25519SSHVerifyNoPubkeyCheck(n_ed25519, k_ed25519)(s <== s, R <== R, m <== m, A <== A);

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modeToggle = document.getElementById('modeToggle');
     const resultMessage = document.getElementById('resultMessage');
     const fillDefaultsButton = document.getElementById('fillDefaults');
+    const rOutputContainer = document.getElementById('rOutputContainer');
 
     // Function to auto-resize textarea
     function autoResizeTextarea(textarea) {
@@ -54,14 +55,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         try {
+            // Add a timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Message processing timed out')), 30000);
+            });
+
             // Convert message to BigInt and log to console
-            const messageAsBigInt = await messageToBigInt(message);
+            const messageAsBigInt = await Promise.race([
+                messageToBigInt(message),
+                timeoutPromise
+            ]);
+            
             console.log('Message:', message.toString());
-            //console.log('Message as BigInt:', formatHexString(bigIntToHex(messageAsBigInt)));
-            return splitBigIntToChunks(messageAsBigInt);
+            const chunks = splitBigIntToChunks(messageAsBigInt);
+            
+            // Ensure we have valid chunks before returning
+            if (!chunks || chunks.length === 0) {
+                throw new Error('Failed to generate valid message chunks');
+            }
+            
+            return chunks;
         } catch (error) {
             console.error('Error processing message:', error);
-            throw new Error('Failed to process message');
+            throw new Error(`Failed to process message: ${error.message}`);
         }
     }
 
@@ -108,12 +124,14 @@ document.addEventListener('DOMContentLoaded', function() {
             actionButton.textContent = 'Verify Proof';
             loadingText.textContent = 'Verifying Proof';
             rInputContainer.style.display = 'block';
+            rOutputContainer.style.display = 'none';
         } else {
             label.textContent = 'Signature';
             signatureInput.setAttribute('placeholder', 'Enter your signature here...');
             actionButton.textContent = 'Generate Proof';
             loadingText.textContent = 'Generating Proof';
             rInputContainer.style.display = 'none';
+            rOutputContainer.style.display = 'block';
         }
     }
 
@@ -175,54 +193,70 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         let parsedSignatureChunks;
         let parsed;
+        
         try {
-            parsed = await processSSHSignature(signature);
+            // Add a timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Signature processing timed out')), 30000);
+            });
+
+            // Process the signature with timeout
+            parsed = await Promise.race([
+                processSSHSignature(signature),
+                timeoutPromise
+            ]);
+            
             console.log('Parsed signature:', parsed);
             
-            //console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
-            //console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
-        } catch (error) {
-            console.error('Error parsing signature:', error);
-            parsedSignatureChunks = [];
-        }   
-        console.log('Parsed:', parsed);
-        try{
-            let signature = splitBigIntToChunks(parsed.signature);
-            let publicKey = splitBigIntToChunks(parsed.publicKey);
+            if (!parsed) {
+                throw new Error('Failed to parse signature');
+            }
+
+            // Process RSA components if they exist
+            if (parsed.signature && parsed.publicKey) {
+                const signatureChunks = splitBigIntToChunks(parsed.signature);
+                const publicKeyChunks = splitBigIntToChunks(parsed.publicKey);
+                
+                if (!signatureChunks || !publicKeyChunks) {
+                    throw new Error('Failed to process RSA components');
+                }
+                
+                parsedSignatureChunks = {
+                    ...parsed,
+                    signature: signatureChunks,
+                    publicKey: publicKeyChunks
+                };
+            }
+            
+            // Process ED25519 components if they exist
+            if (parsed.s && parsed.R && parsed.h && parsed.A) {
+                parsedSignatureChunks = {
+                    ...parsedSignatureChunks,
+                    s: split256BitIntegerTo64(parsed.s),
+                    R: { 
+                        x: split256BitIntegerTo64(parsed.R.x), 
+                        y: split256BitIntegerTo64(parsed.R.y) 
+                    },
+                    h: split256BitIntegerTo64(parsed.h),
+                    A: { 
+                        x: split256BitIntegerTo64(parsed.A.x), 
+                        y: split256BitIntegerTo64(parsed.A.y) 
+                    },
+                    R_enc: parsed.R_enc,
+                    pk_enc: parsed.pk_enc
+                };
+            }
+
+            if (!parsedSignatureChunks) {
+                throw new Error('No valid signature components found');
+            }
+
+            return parsedSignatureChunks;
             
         } catch (error) {
-            console.error('Error converting to RSA chunks:', error);
-            parsedSignatureChunks = [];
+            console.error('Error processing signature:', error);
+            throw new Error(`Failed to process signature: ${error.message}`);
         }
-
-        try{
-            let s = split256BitIntegerTo64(parsed.s);       
-            let R = { x: split256BitIntegerTo64(parsed.R.x), y: split256BitIntegerTo64(parsed.R.y) };
-            let h = split256BitIntegerTo64(parsed.h);
-            let A = { x: split256BitIntegerTo64(parsed.A.x), y: split256BitIntegerTo64(parsed.A.y) };
-            let R_enc = parsed.R_enc;
-            let pk_enc = parsed.pk_enc;
-        } catch (error) {
-            console.error('Error converting to ed25519 chunks:', error);
-            parsedSignatureChunks = [];
-        }
-        try{
-            parsedSignatureChunks = {
-                signature: splitBigIntToChunks(parsed.signature),
-                publicKey: splitBigIntToChunks(parsed.publicKey),
-                s: split256BitIntegerTo64(parsed.s),
-                R: { x: split256BitIntegerTo64(parsed.R.x), y: split256BitIntegerTo64(parsed.R.y) },
-                h: split256BitIntegerTo64(parsed.h),
-                A: { x: split256BitIntegerTo64(parsed.A.x), y: split256BitIntegerTo64(parsed.A.y) },
-                R_enc: parsed.R_enc,
-                algo: parsed.algo,
-                pk_enc: parsed.pk_enc
-            };
-        } catch (error) {
-            console.error('Error converting to chunks:', error);
-            parsedSignatureChunks = [];
-        }
-        return parsedSignatureChunks;
     }
 
 
@@ -230,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const repoUrl = repoUrlInput.value.trim();
         const message = messageInput.value.trim();
         const input = signatureInput.value.trim();
-        const rValue = rInput.value.trim();
+        const rValue = Buffer.from(rInput.value.trim(), "hex");
         const isVerifyMode = modeToggle.checked;
         
         if (!repoUrl) {
@@ -271,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parsedHashedMessage = await processMessage(message);
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
-                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, rValue);
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, Buffer.from(rValue, "hex"));
                 const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
 
                 const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
@@ -297,14 +331,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const signatureAlgo = processedSignature.algo;
                 const parsedED25519_R_enc = processedSignature.R_enc;
                 const parsedED25519_pk_enc = processedSignature.pk_enc;
+
+                // Display the R value
+                const rOutput = document.getElementById('rOutput');
+                rOutput.value = JSON.stringify(parsedED25519_R_enc.toString('hex'), null, 2);
+
                 const hashedKey = hashArray([...parsedRSAPublicKey, ...parsedED25519_A.x, ...parsedED25519_A.y]);
+                console.log('HASHED KEY', hashedKey);
                 //todo add ed25519 public key to processKeysAndBuildMerkleTree
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
                 const hashedKeys = processedKeysandMerkleTree.keys;
                 const [calculatedMerkleProof, merkleDirectionsTF] = await merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
                 const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
-                console.log('hashed key', hashedKey);
+                
                 const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R_enc);
                 const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
                 const hashedKeysForMsghash = processedKeysandMerkleTreeForMsghash.keys;
