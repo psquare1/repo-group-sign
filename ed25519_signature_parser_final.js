@@ -9,14 +9,13 @@ const { assert } = require("console");
 const crypto = require("crypto");
 
 /* ─────── hard-coded demo data ─────────────────────────────────────────────── */
-const SIG_TEXT = `-----BEGIN SSH SIGNATURE-----
-U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
+const SIG_TEXT = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
 9a3OEMBVt8hP5+YVsAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
-OQAAAEA1JM2XODdWCunfw/5v4RjSj1ki+SjAuc/orl/4jJS5oIGBObAJFaAVy12RCXoDgq
-/o0EPNa4it/7dEfIRM3asG
------END SSH SIGNATURE-----`.trim();
+OQAAAEC7hvyp6fP/ZvxApJrtXVLrlp00zfuS1Tdb71xT/RMJQC5BoPFz042FDdp86/2jig
+ju2ryEdC2IuJORPutGoxsD`.trim();
 
-const MESSAGE = "Hello, World\n";               // ← exactly what was signed
+const MESSAGE = "0xPARC\n";               // ← exactly what was signed
+const PUB_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ1l7RV1UOAMPQlP3Mj9dHZZxhtfWtzhDAVbfIT+fmFb duruozer13@gmail.com";
 
 /* ─────── constants & tiny helpers ─────────────────────────────────────────── */
 const l = (1n << 252n) + 27742317777372353535851937790883648493n; // Ed25519 ℓ
@@ -42,26 +41,7 @@ function bytesLEtoBigInt(buf) {
   return n;
 }
 
-/* ─────── master helper ────────────────────────────────────────────────────── */
-/**
- * buildVerifyContext
- * ------------------
- * Parse an ASCII-armoured SSHSIG, recompute all pieces needed for
- * Ed25519 verification, and return them in one object.
- *
- * @param {string|Buffer} sigText  – entire SSHSIG block (BEGIN/END lines)
- * @param {string|Buffer} message  – original message bytes
- * @returns {{
- *   version:number, namespace:Buffer, hash_alg:Buffer,
- *   pk_alg:Buffer, pk_bytes:Buffer,
- *   sig_alg:Buffer, sig_bytes:Buffer,
- *   R_enc:Buffer, S_enc:Buffer,
- *   digest:Buffer, wrapper:Buffer,
- *   h:BigInt
- * }}
- */
-function buildVerifyContext(sigText, message = MESSAGE) {
-  /* 1. Parse outer SSHSIG structure ---------------------------------------- */
+function getSignatureAlgo(sigText){
   const lines   = sigText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const bodyB64 = lines.filter(l => !l.startsWith("-----")).join("");
   const blob    = Buffer.from(bodyB64, "base64");
@@ -80,9 +60,112 @@ function buildVerifyContext(sigText, message = MESSAGE) {
 
   const pkAlg   = readSSHString(pkRaw.data, 0);
   const pkBytes = readSSHString(pkRaw.data, pkAlg.off);
+  return pkAlg.data.toString();
+}
+
+
+function parsePublicEd25519Key(pubKey){// 1. Split into fields:  <alg> <base64> [comment...]
+  const parts = pubKey.trim().split(/\s+/);
+  if (parts.length < 2) throw new Error("Not enough fields out of ed25519 key");
+  const [algField, b64Blob] = parts;
+
+  if (algField !== "ssh-ed25519") {
+    throw new Error(`Unexpected algorithm field “${algField}, expected ssh-ed25519”`);
+  }
+
+  const blob = Buffer.from(b64Blob, "base64");
+  let offset = 0;
+
+  const readU32 = () => {
+    const v = blob.readUInt32BE(offset);
+    offset += 4;
+    return v;
+  };
+  const readBytes = len => blob.slice(offset, offset += len);
+
+  // 2. <string> algorithm name inside the blob
+  const algLen  = readU32();
+  const algName = readBytes(algLen).toString("ascii");
+  if (algName !== "ssh-ed25519") {
+    throw new Error(`Algorithm mismatch inside blob: “${algName}. Expected ssh-ed25519”`);
+  }
+
+  // 3. <string> 32-byte raw public key
+  const keyLen  = readU32();
+  if (keyLen !== 32) throw new Error(`Bad Ed25519 key length: ${keyLen}`);
+  const key = readBytes(keyLen);
+
+  // 4. Any trailing comment after the Base-64 field
+  const comment = parts.length > 2 ? parts.slice(2).join(" ") : null;
+
+  return { algorithm: algName, key, comment};
+}
+
+function createEncodedMessage(message, pkBytes, R_enc){
+  const hname = "sha512";
+  const nsRaw = Buffer.from("file");
+  const hAlg = Buffer.from("sha512");
+  const msgBuf = Buffer.isBuffer(message) ? message : Buffer.from(message, "utf8");
+  const digest = crypto.createHash(hname).update(msgBuf).digest();
+  console.log("nsRaw:", nsRaw.toString());
+  const wrapper = Buffer.concat([
+    Buffer.from("SSHSIG"),
+    writeSSHString(nsRaw),
+    writeSSHString(Buffer.alloc(0)),       // reserved
+    writeSSHString(hAlg),
+    writeSSHString(digest),
+  ]);
+  console.log("wrapper:", wrapper.toString());
+  /* 5. Compute h = SHA-512(R || A || wrapper) mod ℓ ------------------------ */
+  const hBytes = crypto.createHash("sha512")
+                       .update(Buffer.concat([R_enc, pkBytes, wrapper]))
+                       .digest();
+  const h = bytesLEtoBigInt(hBytes) % l;
+  return h;
+}
+
+/* ─────── master helper ────────────────────────────────────────────────────── */
+/**
+ * buildVerifyContext
+ * ------------------
+ * Parse an ASCII-armoured SSHSIG, recompute all pieces needed for
+ * Ed25519 verification, and return them in one object.
+ *
+ * @param {string|Buffer} sigText  – entire SSHSIG block (BEGIN/END lines)
+ * @param {string|Buffer} message  – original message bytes
+ * @returns {{
+*   version:number, namespace:Buffer, hash_alg:Buffer,
+*   pk_alg:Buffer, pk_bytes:Buffer,
+*   sig_alg:Buffer, sig_bytes:Buffer,
+*   R_enc:Buffer, S_enc:Buffer,
+*   digest:Buffer, wrapper:Buffer,
+*   h:BigInt
+* }}
+*/
+function buildVerifyContext(sigText, message = MESSAGE) {
+  /* 1. Parse outer SSHSIG structure ---------------------------------------- */
+  const lines   = sigText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const bodyB64 = lines.filter(l => !l.startsWith("-----")).join("");
+  const blob    = Buffer.from(bodyB64, "base64");
+
+  if (!blob.slice(0, 6).equals(Buffer.from("SSHSIG")))
+    throw new Error("Not an SSHSIG blob");
+  let off = 6;
+
+  const version = blob.readUInt32BE(off); off += 4;
+  const pkRaw   = readSSHString(blob, off);   off = pkRaw.off;
+  const nsRaw   = readSSHString(blob, off);   off = nsRaw.off;
+  console.log("nsRaw:", nsRaw.data.toString());
+  const _resvd  = readSSHString(blob, off);   off = _resvd.off;
+  const hAlg    = readSSHString(blob, off);   off = hAlg.off;
+  const sigRaw  = readSSHString(blob, off);   off = sigRaw.off;
+  if (off !== blob.length) throw new Error("Trailing bytes in SSHSIG");
+
+  const pkAlg   = readSSHString(pkRaw.data, 0);
+  const pkBytes = readSSHString(pkRaw.data, pkAlg.off);
   const sgAlg   = readSSHString(sigRaw.data, 0);
   const sgBytes = readSSHString(sigRaw.data, sgAlg.off);
-
+  
   /* 2. Split Ed25519 signature into R || S --------------------------------- */
   if (sgBytes.data.length !== 64)
     throw new Error(`bad sig length ${sgBytes.data.length} (expected 64)`);
@@ -90,6 +173,7 @@ function buildVerifyContext(sigText, message = MESSAGE) {
   const S_enc = sgBytes.data.slice(32);
 
   /* 3. digest(message) with declared hash ---------------------------------- */
+  
   const msgBuf = Buffer.isBuffer(message) ? message : Buffer.from(message, "utf8");
   const hname  = hAlg.data.toString();
   if (hname !== "sha512" && hname !== "sha256")
@@ -97,6 +181,7 @@ function buildVerifyContext(sigText, message = MESSAGE) {
   const digest = crypto.createHash(hname).update(msgBuf).digest();
 
   /* 4. Rebuild signed `wrapper` -------------------------------------------- */
+  
   const wrapper = Buffer.concat([
     Buffer.from("SSHSIG"),
     writeSSHString(nsRaw.data),
@@ -104,13 +189,16 @@ function buildVerifyContext(sigText, message = MESSAGE) {
     writeSSHString(hAlg.data),
     writeSSHString(digest),
   ]);
-
+  console.log("wrapper:", wrapper.toString());
   /* 5. Compute h = SHA-512(R || A || wrapper) mod ℓ ------------------------ */
+  /*
   const hBytes = crypto.createHash("sha512")
                        .update(Buffer.concat([R_enc, pkBytes.data, wrapper]))
                        .digest();
-  const h = bytesLEtoBigInt(hBytes) % l;
-
+  const h = bytesLEtoBigInt(hBytes) % l; */
+  const h = createEncodedMessage(MESSAGE, pkBytes.data, R_enc);
+  //console.log("h:", h.toString(16));
+  // console.log("Created h:", createEncodedMessage(MESSAGE, pkBytes.data, R_enc).toString(16));
   return {
     version,
     namespace : nsRaw.data,
@@ -493,6 +581,15 @@ function reduceToCurveMultiplication(signature) {
   }
 }
 
+
+function reduceED25519PubKeyToCurve(pubKey) {
+  const {key, comment, algName} = parsePublicEd25519Key(pubKey);
+  let pk_enc = key;
+  let pk = decodePoint(pk_enc);
+  let pk_montgomery = convertToMontgomery(pk.x, pk.y);
+  let pk_weierstrass = convertToWeierstrass(pk_montgomery.x, pk_montgomery.y);
+  return { algorithm: algName, key, comment, A: pk_weierstrass};
+}
 /**
  * split256BitInteger
  * -------------------
@@ -501,7 +598,7 @@ function reduceToCurveMultiplication(signature) {
  * @param {BigInt} n - The 256-bit integer to split.
  * @returns {BigInt[]} - Array of four 64-bit integers.
  */
-function split256BitInteger(n) {
+function split256BitIntegerTo64(n) {
   const mask64 = (1n << 64n) - 1n; // Mask to extract 64 bits
   const parts = [];
 
@@ -516,10 +613,12 @@ function split256BitInteger(n) {
 /* ─────── quick demo (run `node build_verify_context.js`) ─────────────────── */
 if (require.main === module) {
   const {s, R, h, A} = reduceToCurveMultiplication(SIG_TEXT);
-  console.log("Signature scalar (s):", split256BitInteger(s));
-  console.log("R point on Weierstrass curve:", [split256BitInteger(R.x), split256BitInteger(R.y)]);
-  console.log("h:", split256BitInteger(h));
-  console.log("Public key point on Weierstrass curve:", [split256BitInteger(A.x), split256BitInteger(A.y)]);
+  console.log("Signature scalar (s):", split256BitIntegerTo64(s));
+  console.log("R point on Weierstrass curve:", [split256BitIntegerTo64(R.x), split256BitIntegerTo64(R.y)]);
+  console.log("h:", split256BitIntegerTo64(h));
+  console.log("Public key point on Weierstrass curve:", [split256BitIntegerTo64(A.x), split256BitIntegerTo64(A.y)]);
+  const pubKeyA = reduceED25519PubKeyToCurve(PUB_KEY).A;
+  console.log("Extracted public key point from shh public key on Weierstrass curve: ", [split256BitIntegerTo64(pubKeyA.x), split256BitIntegerTo64(pubKeyA.y)]);
   // verify that sB = R + hA
   let B = basePointEdwards;
   let B_montgomery = convertToMontgomery(B.x, B.y);
@@ -530,3 +629,11 @@ if (require.main === module) {
   console.log("R + hA:", R_plus_hA);
   console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
 }
+
+// window.reduceToCurveMultiplication = reduceToCurveMultiplication;
+// window.getSignatureAlgo = getSignatureAlgo;
+// window.split256BitIntegerTo64 = split256BitIntegerTo64;
+// window.reduceED25519PubKeyToCurve = reduceED25519PubKeyToCurve;
+// window.createEncodedMessage = createEncodedMessage; 
+
+

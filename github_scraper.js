@@ -50,6 +50,13 @@ function filterRSAKeys(publicKeys) {
     });
 }
 
+function filterED25519Keys(publicKeys) {
+    return publicKeys.filter(key => {
+        const keyType = getKeyType(key.key);
+        return keyType === 'ED25519';
+    });
+}
+
 async function scrapeRepositoryPublicKeys(repoUrl) {
     // Extract owner and repo from URL
     const [owner, repo] = repoUrl.split('/').slice(-2);
@@ -77,15 +84,24 @@ async function scrapeRepositoryPublicKeys(repoUrl) {
             // Filter for RSA keys only
             // TODO: Expand functionality to include other key types
             const rsaKeys = filterRSAKeys(publicKeys);
-            if (rsaKeys.length > 0) {
+            const ed25519Keys = filterED25519Keys(publicKeys);
+            if (rsaKeys.length > 0 || ed25519Keys.length > 0) {
                 results.contributors[username] = {
                     contributions: contributor.contributions,
-                    publicKeys: rsaKeys.map(key => ({
-                        id: key.id,
-                        key: key.key,
-                        title: key.title,
-                        type: getKeyType(key.key)  // Add key type to output
-                    }))
+                    publicKeys: [
+                        ...rsaKeys.map(key => ({
+                            id: key.id,
+                            key: key.key,
+                            title: key.title,
+                            type: getKeyType(key.key)
+                        })),
+                        ...ed25519Keys.map(key => ({
+                            id: key.id,
+                            key: key.key,
+                            title: key.title,
+                            type: getKeyType(key.key)
+                        }))
+                    ]
                 };
             }
         }

@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageInput = document.getElementById('message');
     const signatureInput = document.getElementById('signature');
     const signatureInputContainer = document.getElementById('signatureInputContainer');
+    const rInput = document.getElementById('rInput');
+    const rInputContainer = document.getElementById('rInputContainer');
     const modeToggle = document.getElementById('modeToggle');
     const resultMessage = document.getElementById('resultMessage');
     const fillDefaultsButton = document.getElementById('fillDefaults');
@@ -55,6 +57,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    async function processSSHSignature (signature) {
+        if (!signature) {
+            return;
+        }
+        const algo = getSignatureAlgo(signature);
+        let parsed = {
+            signature: 0n,
+            publicKey: 0n,
+            s: 0n,
+            R: { x: 0n, y: 0n },
+            h: 0n,
+            A: { x: 0n, y: 0n },
+            algo: algo
+        };
+        
+        if (algo === 'ssh-ed25519') {   
+            const ed25519Parsed = reduceToCurveMultiplication(signature);
+            parsed = {
+                ...parsed,
+                s: ed25519Parsed.s,
+                R: ed25519Parsed.R,
+                h: ed25519Parsed.h,
+                A: ed25519Parsed.A
+            };
+        } else {
+            const rsaParsed = parseRSASignature(signature);
+            parsed = {
+                ...parsed,
+                signature: rsaParsed.signature,
+                publicKey: rsaParsed.publicKey
+            };
+        }
+        return parsed;
+    }
+
     // Function to update UI based on mode
     function updateUIMode(isVerifyMode) {
         const label = signatureInputContainer.querySelector('label');
@@ -65,11 +102,13 @@ document.addEventListener('DOMContentLoaded', function() {
             signatureInput.setAttribute('placeholder', 'Enter your proof here...');
             actionButton.textContent = 'Verify Proof';
             loadingText.textContent = 'Verifying Proof';
+            rInputContainer.style.display = 'block';
         } else {
             label.textContent = 'Signature';
             signatureInput.setAttribute('placeholder', 'Enter your signature here...');
             actionButton.textContent = 'Generate Proof';
             loadingText.textContent = 'Generating Proof';
+            rInputContainer.style.display = 'none';
         }
     }
 
@@ -131,12 +170,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         let parsedSignatureChunks;
         try {
-            const parsed = parseSSHSignature(signature);
-            //console.log('Parsed signature:', parsed);
+            const parsed = processSSHSignature(signature);
+            console.log('Parsed signature:', parsed);
             
             parsedSignatureChunks = {
                 signature: splitBigIntToChunks(parsed.signature),
                 publicKey: splitBigIntToChunks(parsed.publicKey),
+                s: split256BitIntegerTo64(parsed.s),
+                R: { x: split256BitIntegerTo64(parsed.R.x), y: split256BitIntegerTo64(parsed.R.y) },
+                h: split256BitIntegerTo64(parsed.h),
+                A: { x: split256BitIntegerTo64(parsed.A.x), y: split256BitIntegerTo64(parsed.A.y) },
+                algo: parsed.algo
             };
             //console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
             //console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
@@ -152,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const repoUrl = repoUrlInput.value.trim();
         const message = messageInput.value.trim();
         const input = signatureInput.value.trim();
+        const rValue = rInput.value.trim();
         const isVerifyMode = modeToggle.checked;
         
         if (!repoUrl) {
@@ -192,11 +237,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parsedHashedMessage = await processMessage(message);
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
+                const parsedED25519_R = processSignature(rValue).R;
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R);
+                const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
 
                 const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
                     return res.json();
                 });
-                const publicSignals = [...parsedHashedMessage, merkleTreeRoot.data];
+                const publicSignals = [...parsedHashedMessage, merkleTreeRoot.data, merkleTreeRootForMsghash.data];
                 
                 console.log(publicSignals);
                 const isValid = await groth16.verify(vkey, publicSignals, proof);
@@ -207,23 +255,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Generate mode
                 const parsedHashedMessage = await processMessage(message);
                 const processedSignature = await processSignature(input);
-                const parsedSignature = processedSignature.signature;
-                const parsedPublicKey = processedSignature.publicKey;
-                const hashedKey = hashArray(parsedPublicKey);
-
+                const parsedRSASignature = processedSignature.signature;
+                const parsedRSAPublicKey = processedSignature.publicKey;
+                const parsedED25519Signature_s = processedSignature.s;
+                const parsedED25519_A = processedSignature.A;  
+                const parsedED25519_R = processedSignature.R;
+                const parsedED25519_h = processedSignature.h;
+                const signatureAlgo = processedSignature.algo;
+                const hashedKey = hashArray([...parsedRSAPublicKey, ...parsedED25519_A.x, ...parsedED25519_A.y]);
+                //todo add ed25519 public key to processKeysAndBuildMerkleTree
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
                 const hashedKeys = processedKeysandMerkleTree.keys;
                 const [calculatedMerkleProof, merkleDirectionsTF] = await merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
                 const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
             
+
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R);
+                const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
+                const hashedKeysForMsghash = processedKeysandMerkleTreeForMsghash.keys;
+                const [calculatedMerkleProofForMsghash, merkleDirectionsTFForMsghash] = await merkleProof(merkleTreeRootForMsghash, hashedKey, hashedKeysForMsghash.indexOf(hashedKey));
+                const merkleDirectionsForMsghash = merkleDirectionsTFForMsghash.map((x) => x ? "1" : "0");
+
                 const { proof, publicSignals } = await groth16.fullProve({
                     message: parsedHashedMessage,
-                    treeProofs: calculatedMerkleProof,
-                    treeDirections: merkleDirections,
-                    signature: parsedSignature,
-                    correctKey: parsedPublicKey,
-                    merkleRoot: merkleTreeRoot.data,
+                    signature: parsedRSASignature,
+                    correctKey: parsedRSAPublicKey,
+                    pubKeyMerkleRoot: merkleTreeRoot.data,
+                    pubKeyTreeProofs: calculatedMerkleProof,
+                    pubKeyTreeDirections: merkleDirections,
+                    
+                    msghashMerkleRoot: merkleTreeRootForMsghash.data,
+                    msghashTreeProofs: calculatedMerkleProofForMsghash,
+                    msghashTreeDirections: merkleDirectionsForMsghash,
+                    
+                    s: parsedED25519Signature_s,
+                    R: parsedED25519_R,
+                    m: parsedED25519_h,
+                    A: parsedED25519_A,
+                    
                 }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 
                 // Display the proof

@@ -148,7 +148,7 @@ async function messageToBigInt(msgStr) {
   return output;
 }
 
-function parseSSHSignature(b64) {
+function parseRSASignature(b64) {
     // Decode Base64 to a Uint8Array
     const binStr = atob(b64);
     const buf = new Uint8Array(binStr.length);
@@ -243,4 +243,4 @@ window.concat = concat;
 window.hex2bytes = hex2bytes;
 window.bytes2hex = bytes2hex;
 window.messageToBigInt = messageToBigInt;
-window.parseSSHSignature = parseSSHSignature;
+window.parseRSASignature = parseRSASignature;
