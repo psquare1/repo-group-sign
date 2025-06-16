@@ -62,9 +62,12 @@ function merkleTree(data) {
  * a True direction means that the value is in the right subtree and we must hash left child's data with val.
  */
 function merkleProof(tree, val, index) {
-    // console.log("tree.data: ", tree.data);
-    // console.log("tree.l_index: ", tree.l_index, "tree.r_index: ", tree.r_index);
+    //console.log("tree.data: ", tree.data);
+    //console.log("tree.l_index: ", tree.l_index, "tree.r_index: ", tree.r_index);
+    //console.log("val: ", val);
     if (tree.left === null && tree.right === null) {
+        //console.log("val: ", val);
+        //console.log("tree.data: ", tree.data);
         if (val === tree.data) {
             return [[], []];
         }

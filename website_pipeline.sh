@@ -3,7 +3,7 @@ set -e  # Exit on any error
 
 # Step 1: Compile the circom circuit
 echo "Step 1: Compiling the circom circuit..."
-circom --r1cs --wasm --c --sym --inspect circuit.circom 
+circom --r1cs --wasm --c --sym --inspect circuit.circom -l node_modules > error.txt
 if [ $? -ne 0 ]; then 
    echo "Error: circom failed."
    exit 1

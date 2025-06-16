@@ -1,4 +1,12 @@
 import { groth16 } from "snarkjs";
+import { Buffer } from "buffer"
+
+
+const ED25519_DEFAULT_SIG = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
+9a3OEMBVt8hP5+YVsAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
+OQAAAEC7hvyp6fP/ZvxApJrtXVLrlp00zfuS1Tdb71xT/RMJQC5BoPFz042FDdp86/2jig
+ju2ryEdC2IuJORPutGoxsD`.trim();
+const RSA_DEFAULT_SIG = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/WzBvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMjqSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZcMx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3YaZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hltAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMdZw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFEcI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTOoXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEdJh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW+u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHkKlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEbHue5Ug`;
 
 document.addEventListener('DOMContentLoaded', function() {
     const actionButton = document.getElementById('actionButton');
@@ -48,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             // Convert message to BigInt and log to console
             const messageAsBigInt = await messageToBigInt(message);
-            console.log('Message:', message);
+            console.log('Message:', message.toString());
             //console.log('Message as BigInt:', formatHexString(bigIntToHex(messageAsBigInt)));
             return splitBigIntToChunks(messageAsBigInt);
         } catch (error) {
@@ -62,14 +70,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         const algo = getSignatureAlgo(signature);
-        let parsed = {
-            signature: 0n,
-            publicKey: 0n,
-            s: 0n,
-            R: { x: 0n, y: 0n },
-            h: 0n,
-            A: { x: 0n, y: 0n },
-            algo: algo
+        let parsed = { 
+            ...reduceToCurveMultiplication(ED25519_DEFAULT_SIG), 
+            ...parseRSASignature(RSA_DEFAULT_SIG) 
         };
         
         if (algo === 'ssh-ed25519') {   
@@ -79,7 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 s: ed25519Parsed.s,
                 R: ed25519Parsed.R,
                 h: ed25519Parsed.h,
-                A: ed25519Parsed.A
+                A: ed25519Parsed.A,
+                R_enc: ed25519Parsed.R_enc,
+                pk_enc: ed25519Parsed.pk_enc
             };
         } else {
             const rsaParsed = parseRSASignature(signature);
@@ -164,15 +169,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to process and display signature
-    function processSignature(signature) {
+    async function processSignature(signature) {
         if (!signature) {
             return;
         }
         let parsedSignatureChunks;
+        let parsed;
         try {
-            const parsed = processSSHSignature(signature);
+            parsed = await processSSHSignature(signature);
             console.log('Parsed signature:', parsed);
             
+            //console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
+            //console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
+        } catch (error) {
+            console.error('Error parsing signature:', error);
+            parsedSignatureChunks = [];
+        }   
+        console.log('Parsed:', parsed);
+        try{
+            let signature = splitBigIntToChunks(parsed.signature);
+            let publicKey = splitBigIntToChunks(parsed.publicKey);
+            
+        } catch (error) {
+            console.error('Error converting to RSA chunks:', error);
+            parsedSignatureChunks = [];
+        }
+
+        try{
+            let s = split256BitIntegerTo64(parsed.s);       
+            let R = { x: split256BitIntegerTo64(parsed.R.x), y: split256BitIntegerTo64(parsed.R.y) };
+            let h = split256BitIntegerTo64(parsed.h);
+            let A = { x: split256BitIntegerTo64(parsed.A.x), y: split256BitIntegerTo64(parsed.A.y) };
+            let R_enc = parsed.R_enc;
+            let pk_enc = parsed.pk_enc;
+        } catch (error) {
+            console.error('Error converting to ed25519 chunks:', error);
+            parsedSignatureChunks = [];
+        }
+        try{
             parsedSignatureChunks = {
                 signature: splitBigIntToChunks(parsed.signature),
                 publicKey: splitBigIntToChunks(parsed.publicKey),
@@ -180,14 +214,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 R: { x: split256BitIntegerTo64(parsed.R.x), y: split256BitIntegerTo64(parsed.R.y) },
                 h: split256BitIntegerTo64(parsed.h),
                 A: { x: split256BitIntegerTo64(parsed.A.x), y: split256BitIntegerTo64(parsed.A.y) },
-                algo: parsed.algo
+                R_enc: parsed.R_enc,
+                algo: parsed.algo,
+                pk_enc: parsed.pk_enc
             };
-            //console.log('Public Key:', formatHexString(bigIntToHex(parsed.publicKey)));
-            //console.log('Signature:', formatHexString(bigIntToHex(parsed.signature)));
         } catch (error) {
-            console.error('Error parsing signature:', error);
+            console.error('Error converting to chunks:', error);
             parsedSignatureChunks = [];
-        }   
+        }
         return parsedSignatureChunks;
     }
 
@@ -237,8 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parsedHashedMessage = await processMessage(message);
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
-                const parsedED25519_R = processSignature(rValue).R;
-                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R);
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, rValue);
                 const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
 
                 const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
@@ -262,6 +295,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parsedED25519_R = processedSignature.R;
                 const parsedED25519_h = processedSignature.h;
                 const signatureAlgo = processedSignature.algo;
+                const parsedED25519_R_enc = processedSignature.R_enc;
+                const parsedED25519_pk_enc = processedSignature.pk_enc;
                 const hashedKey = hashArray([...parsedRSAPublicKey, ...parsedED25519_A.x, ...parsedED25519_A.y]);
                 //todo add ed25519 public key to processKeysAndBuildMerkleTree
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
@@ -269,14 +304,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const hashedKeys = processedKeysandMerkleTree.keys;
                 const [calculatedMerkleProof, merkleDirectionsTF] = await merkleProof(merkleTreeRoot, hashedKey, hashedKeys.indexOf(hashedKey));
                 const merkleDirections = merkleDirectionsTF.map((x) => x ? "1" : "0");
-            
-
-                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R);
+                console.log('hashed key', hashedKey);
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, parsedED25519_R_enc);
                 const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
                 const hashedKeysForMsghash = processedKeysandMerkleTreeForMsghash.keys;
-                const [calculatedMerkleProofForMsghash, merkleDirectionsTFForMsghash] = await merkleProof(merkleTreeRootForMsghash, hashedKey, hashedKeysForMsghash.indexOf(hashedKey));
+                const h = processPublicKeyForMsghash(parsedED25519_pk_enc, message, parsedED25519_R_enc);
+                const hashedMsghash = hashArray(split256BitIntegerTo64(h));
+                //console.log('hashedMsghash', hashedMsghash);
+                //console.log('index: ', hashedKeysForMsghash.indexOf(hashedMsghash));
+                const [calculatedMerkleProofForMsghash, merkleDirectionsTFForMsghash] = await merkleProof(merkleTreeRootForMsghash, hashedMsghash, hashedKeysForMsghash.indexOf(hashedMsghash));
                 const merkleDirectionsForMsghash = merkleDirectionsTFForMsghash.map((x) => x ? "1" : "0");
-
+                console.log("parsedED25519_R", parsedED25519_R);
+                console.log("INPUTS", {
+                    message: parsedHashedMessage,
+                    signature: parsedRSASignature,
+                    correctKey: parsedRSAPublicKey,
+                    pubKeyMerkleRoot: merkleTreeRoot.data,
+                    pubKeyTreeProofs: calculatedMerkleProof,
+                    pubKeyTreeDirections: merkleDirections,
+                    
+                    msghashMerkleRoot: merkleTreeRootForMsghash.data,
+                    msghashTreeProofs: calculatedMerkleProofForMsghash,
+                    msghashTreeDirections: merkleDirectionsForMsghash,
+                    
+                    s: parsedED25519Signature_s,
+                    R: [parsedED25519_R.x, parsedED25519_R.y],
+                    m: parsedED25519_h,
+                    A: [parsedED25519_A.x, parsedED25519_A.y],
+                    
+                });
                 const { proof, publicSignals } = await groth16.fullProve({
                     message: parsedHashedMessage,
                     signature: parsedRSASignature,
@@ -290,9 +346,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     msghashTreeDirections: merkleDirectionsForMsghash,
                     
                     s: parsedED25519Signature_s,
-                    R: parsedED25519_R,
+                    R: [parsedED25519_R.x, parsedED25519_R.y],
                     m: parsedED25519_h,
-                    A: parsedED25519_A,
+                    A: [parsedED25519_A.x, parsedED25519_A.y],
                     
                 }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 

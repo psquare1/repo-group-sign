@@ -1,0 +1,14 @@
+[32mtemplate instances[0m: 142
+non-linear constraints: 2428596
+linear constraints: 169730
+public inputs: 45
+private inputs: 98
+public outputs: 0
+wires: 2582334
+labels: 3144774
+[32mWritten successfully:[0m ./circuit.r1cs
+[32mWritten successfully:[0m ./circuit.sym
+[32mWritten successfully:[0m ./circuit_cpp/circuit.cpp and ./circuit_cpp/circuit.dat
+[32mWritten successfully:[0m ./circuit_cpp/main.cpp, circom.hpp, calcwit.hpp, calcwit.cpp, fr.hpp, fr.cpp, fr.asm and Makefile
+[32mWritten successfully:[0m ./circuit_js/circuit.wasm
+[32mEverything went okay[0m

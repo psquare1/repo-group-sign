@@ -99,6 +99,7 @@ template VerifyMerkleProof(size) {
     hval[0] <== val;
 
     signal hval_selector[size][2];
+    component ise = IsEqual();
     for (var i = 0; i < size; i++) {
         hval_selector[i][0] <== Poseidon(2)([hval[i], proof[i]]);
         hval_selector[i][1] <== Poseidon(2)([proof[i], hval[i]]);
@@ -106,7 +107,9 @@ template VerifyMerkleProof(size) {
     }
 
     our_root <== hval[size];
-    out <== isEqual()(in[0] <== our_root, in[1] <== root);
+    ise.in[0] <== our_root;
+    ise.in[1] <== root;
+    out <== ise.out;
 }
 
 

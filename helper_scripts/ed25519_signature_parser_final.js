@@ -5,8 +5,11 @@
  * Hard-coded inputs below are just examples; replace at will.
  */
 "use strict";
-const { assert } = require("console");
-const crypto = require("crypto");
+//  const { assert } = require("console");
+//  const crypto = require("crypto");
+const assert = console.assert.bind(console);
+import { Buffer } from "buffer"
+import crypto from "crypto"
 
 /* ─────── hard-coded demo data ─────────────────────────────────────────────── */
 const SIG_TEXT = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
@@ -105,9 +108,10 @@ function createEncodedMessage(message, pkBytes, R_enc){
   const hname = "sha512";
   const nsRaw = Buffer.from("file");
   const hAlg = Buffer.from("sha512");
+ 
   const msgBuf = Buffer.isBuffer(message) ? message : Buffer.from(message, "utf8");
   const digest = crypto.createHash(hname).update(msgBuf).digest();
-  console.log("nsRaw:", nsRaw.toString());
+  
   const wrapper = Buffer.concat([
     Buffer.from("SSHSIG"),
     writeSSHString(nsRaw),
@@ -115,7 +119,7 @@ function createEncodedMessage(message, pkBytes, R_enc){
     writeSSHString(hAlg),
     writeSSHString(digest),
   ]);
-  console.log("wrapper:", wrapper.toString());
+  
   /* 5. Compute h = SHA-512(R || A || wrapper) mod ℓ ------------------------ */
   const hBytes = crypto.createHash("sha512")
                        .update(Buffer.concat([R_enc, pkBytes, wrapper]))
@@ -155,7 +159,7 @@ function buildVerifyContext(sigText, message = MESSAGE) {
   const version = blob.readUInt32BE(off); off += 4;
   const pkRaw   = readSSHString(blob, off);   off = pkRaw.off;
   const nsRaw   = readSSHString(blob, off);   off = nsRaw.off;
-  console.log("nsRaw:", nsRaw.data.toString());
+ 
   const _resvd  = readSSHString(blob, off);   off = _resvd.off;
   const hAlg    = readSSHString(blob, off);   off = hAlg.off;
   const sigRaw  = readSSHString(blob, off);   off = sigRaw.off;
@@ -196,7 +200,7 @@ function buildVerifyContext(sigText, message = MESSAGE) {
                        .update(Buffer.concat([R_enc, pkBytes.data, wrapper]))
                        .digest();
   const h = bytesLEtoBigInt(hBytes) % l; */
-  const h = createEncodedMessage(MESSAGE, pkBytes.data, R_enc);
+  const h = createEncodedMessage(message, pkBytes.data, R_enc);
   //console.log("h:", h.toString(16));
   // console.log("Created h:", createEncodedMessage(MESSAGE, pkBytes.data, R_enc).toString(16));
   return {
@@ -578,6 +582,8 @@ function reduceToCurveMultiplication(signature) {
     R: R_weierstrass,
     h: h,
     A: pk_weierstrass,
+    R_enc: R_enc,
+    pk_enc: pk_enc
   }
 }
 
@@ -611,6 +617,7 @@ function split256BitIntegerTo64(n) {
 }
 
 /* ─────── quick demo (run `node build_verify_context.js`) ─────────────────── */
+/*
 if (require.main === module) {
   const {s, R, h, A} = reduceToCurveMultiplication(SIG_TEXT);
   console.log("Signature scalar (s):", split256BitIntegerTo64(s));
@@ -629,11 +636,12 @@ if (require.main === module) {
   console.log("R + hA:", R_plus_hA);
   console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
 }
-
-// window.reduceToCurveMultiplication = reduceToCurveMultiplication;
-// window.getSignatureAlgo = getSignatureAlgo;
-// window.split256BitIntegerTo64 = split256BitIntegerTo64;
-// window.reduceED25519PubKeyToCurve = reduceED25519PubKeyToCurve;
-// window.createEncodedMessage = createEncodedMessage; 
+*/
+window.reduceToCurveMultiplication = reduceToCurveMultiplication;
+window.getSignatureAlgo = getSignatureAlgo;
+window.split256BitIntegerTo64 = split256BitIntegerTo64;
+window.reduceED25519PubKeyToCurve = reduceED25519PubKeyToCurve;
+window.createEncodedMessage = createEncodedMessage; 
+window.parsePublicEd25519Key = parsePublicEd25519Key;
 
 

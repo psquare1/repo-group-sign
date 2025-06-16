@@ -34,14 +34,14 @@ template GroupSignature(n_rsa, k_rsa, proofSize, n_ed25519, k_ed25519) {
     signal pubKeyInGroup;
     signal msghashInGroup;
     //check rsa
-    rsaValid <== RSAGroupSignature(n_rsa, k_rsa, proofSize_rsa)(message <== message, signature <== signature, correctKey <== correctKey);
+    rsaValid <== RSAGroupSignature(n_rsa, k_rsa)(message <== message, signature <== signature, correctKey <== correctKey);
     
     // check merkle proof
     pubKeyVal <== PoseidonArray(k_rsa)(in <== correctKey);
     pubKeyInGroup <== VerifyMerkleProof(proofSize)(proof <== pubKeyTreeProofs, directions <== pubKeyTreeDirections, root <== pubKeyMerkleRoot, val <== pubKeyVal); 
     
     // check ed22519
-    ed25519Works <== ECDSASSHVerifyNoPubkeyCheck(n_ed25519, k_ed25519)(s <== s, R <== R, m <== m, A <== A);
+    ed25519Works <== ed25519SSHVerifyNoPubkeyCheck(n_ed25519, k_ed25519)(s <== s, R <== R, m <== m, A <== A);
     msghashVal <== PoseidonArray(k_ed25519)(in <== m);
     msghashInGroup <== VerifyMerkleProof(proofSize)(proof <== msghashTreeProofs, directions <== msghashTreeDirections, root <== msghashMerkleRoot, val <== msghashVal); 
     ed25519Valid <== ed25519Works * msghashInGroup;
