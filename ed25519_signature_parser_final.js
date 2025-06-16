@@ -483,18 +483,13 @@ function reduceToCurveMultiplication(signature) {
   let B_montgomery = convertToMontgomery(B.x, B.y);
   let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
   const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
-  
-  const sB_minus_R_weierstrass = addPointsWeierstrass(sB_weierstrass, invertPointWeierstrass(R_weierstrass));
-  //console.log("sB - R as Weierstrass curve point:", sB_minus_R_weierstrass);
 
-  const h_pk_weierstrass = scalarMultiplyWeierstrass(h, pk_weierstrass);
-  //console.log("h * Public key as Weierstrass curve point:", h_pk_weierstrass);
-
-  // should satisfy h * A = C
+  // should satisfy sB = R + hA
   return {
+    s: s,
+    R: R_weierstrass,
     h: h,
     A: pk_weierstrass,
-    C: sB_minus_R_weierstrass,
   }
 }
 
@@ -520,8 +515,18 @@ function split256BitInteger(n) {
 
 /* ─────── quick demo (run `node build_verify_context.js`) ─────────────────── */
 if (require.main === module) {
-  const { h, A, C } = reduceToCurveMultiplication(SIG_TEXT);
+  const {s, R, h, A} = reduceToCurveMultiplication(SIG_TEXT);
+  console.log("Signature scalar (s):", split256BitInteger(s));
+  console.log("R point on Weierstrass curve:", [split256BitInteger(R.x), split256BitInteger(R.y)]);
   console.log("h:", split256BitInteger(h));
-  console.log("A:", [split256BitInteger(A.x), split256BitInteger(A.y)]);
-  console.log("C:", [split256BitInteger(C.x), split256BitInteger(C.y)]);
+  console.log("Public key point on Weierstrass curve:", [split256BitInteger(A.x), split256BitInteger(A.y)]);
+  // verify that sB = R + hA
+  let B = basePointEdwards;
+  let B_montgomery = convertToMontgomery(B.x, B.y);
+  let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
+  const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
+  const R_plus_hA = addPointsWeierstrass(R, scalarMultiplyWeierstrass(h, A));
+  console.log("sB:", sB_weierstrass);
+  console.log("R + hA:", R_plus_hA);
+  console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
 }
