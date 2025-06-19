@@ -36,5 +36,16 @@ circuit_cpp/
 verification_key.json
 Now
 .cursor/
+
+dont_use_ed25519
+dont_use_ed25519.pub
+dont_use_rsa4096
+dont_use_rsa4096.pub
+helper_scripts/proof.txt
+input.json
+wrongproof.txt
+proof.txt
+error.txt
+
 Add an Emoji, Sticker, or GIF
 

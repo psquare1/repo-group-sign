@@ -3,13 +3,11 @@
 //const { hashArray, merkleTree } = require('./merkle');
 import { Buffer } from "buffer"
 
-const ED25519_DEFAULT_KEY = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ1l7RV1UOAMPQlP3Mj9dHZZxhtfWtzhDAVbfIT+fmFb duruozer13@gmail.com
-`.trim();
-const RSA_DEFAULT_KEY = `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCv0UCsoturWdqPe7K82hCN+D/jS8TkFIsmWV2V3WGlkjcbgGEu9TtNW+HUG/oX5LfV5PZeq5pm74T7YfxKV9bQRRhuBJDusHBmbFkPEcverJ6Jy473jKlFNamM2gUeRjU49fNf5nsUkp/Nz299hNkxMP7tQKXa+1trUAopmZjV9grqgm2aybG7llV/rfQU9vLVY7r/4ng1GxfR4+LZsidiTtUDo+ub9NgYCeGWP/3Q+kPPA5zeXt/XJ71Xqb7c8kW+2QVaGLphDxMmecftETHdsfG+B+jE/vjEDWtIdCPwoCrZnDINI6WekvXo2E9lM9a3vVsOfclWuNgKwUE+MihWYAdU8G1Es9WKoeod7+dHM3/XccGy+Stfc0cRepiOdIik5tzsw1WWO6h2F2nXoPECFxsZi3RxFKp7FuDznLSJ5qFDH0uTE6FdmtBrsG+Il9jWNfSnV1kHREj36nbmqknnlb0/IUPtCf2Lbg1YUALJ1o6BmzkOqoDQoCet3lefL8jhMNZuhNHHEb4wr12x+Wyyck20yZh/8zeFfMgnwgA+RfseFUVmzXuptCwzrgnZP1JCDeLMhSJu96+tCymtw3WGvhNe3TxEjFJP39pX3l5BA/AbyRKNGEtLiK9U8vhocuRU+g+YwC40tAKZ9iRozAGg4W7vj0j58qB9zF1NvyRkzQ== duruozer13@gmail.com`;
+const ED25519_DEFAULT_KEY = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAkJkECf2GcebGMzqNQdoyGra0lZ5hVMqwFOvBJLxnq duruozer13@gmail.com`.trim();
+const RSA_DEFAULT_KEY = `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC4+qD8+FYG62RDVTzMjU5MaDU+FrNs5gzR0SkDQgvF7HGaxGBlNcwWpuFhbfjKyaSDl4AXRlCAEjtVCGmfJdAz0TmmlZ8oQLzdqKucQmCj6mP4absR0nDfODxKlkh4eqluELBpiikl4goIL5ISbIujv8ksKj8CXOyaCSzchDxX8dym4PHuXjKTtX/ZqrScdzBaRlMRH1L/X86rP3PLNmOklB9tqY6zRFXFcvvnsZmi3s8BkbwZW1jqxR46dW+p+XOrj0qtS9rfE8EeU0uiSko6VWsg69LGWzJVIISE+geQPqN4Jdxva1uxyQIS6hjd57edlRxCgrryyin12seCWarStZT2E30o3rTpIK2lDXHb1gTxfTBBVHdUq/yKcRABxYmQV83L+d9ewceBBooCAy9cnNaNcKceoUIi54CsykPkmUcDL2yJJkkL4IU+nKVZEwpuwbl3xlbIDgz/HoYI37ygsXOPHOZOazZ7rpp7pDvypIiWoFefonuhSMVOMJDwPOgl1a7cn0o2TmGkGB7E0uH//niSlgyQ/MPawOuJzk/HUKYWa56q6tH5yyPkHEM3DRTZL0AOMyiIiG4TFrxGC/fPYC7JbUkEp88opg9OgJQR9XaIv81+vAhqLNeqMJellXi2paNpG5tI6L/tZBBUGzGePRLeZRCMODv4Qt9cinIbtQ== duruozer13@gmail.com`;
 
 function processPublicKey(key){
     let parsed = [];
-    console.log('key type', key.type);
     if (key.type === 'ED25519') {   
         const ed25519Parsed = reduceED25519PubKeyToCurve(key.key).A;
         const rsaParsed = parseRSAPublicKey(RSA_DEFAULT_KEY);
@@ -23,8 +21,6 @@ function processPublicKey(key){
             ...split256BitIntegerTo64(ed25519Parsed.y)
         ];
     }
-    console.log('key', key);
-    console.log('parsed', parsed);
     return parsed
 }
 
@@ -32,15 +28,12 @@ function processPublicKeyForMsghash(key, message, R){
     let ed25519Parsed = parsePublicEd25519Key(ED25519_DEFAULT_KEY).key;
     if (key.type === 'ED25519') {   
         try{
-            ed25519Parsed = parsePublicEd25519Key(key.data).key;
+            ed25519Parsed = parsePublicEd25519Key(key.key).key;
         } catch (error) {
             console.error(`Error parsing ED25519 key: ${error.message}`);
             return null;
         }
     }
-    console.log('ed25519Parsed', ed25519Parsed);
-    console.log('message', message);
-    console.log('R', R);
     let encodedMessage;
     try{
         encodedMessage = createEncodedMessage(message, ed25519Parsed, R);
@@ -69,17 +62,12 @@ function processKeysAndBuildMerkleTree(data) {
         try {
             const parsedKey = processPublicKey(key);
             const currentHashedKey = hashArray(parsedKey);
-            console.log('key', key);
-            console.log('parsedKey', parsedKey);
-            console.log(`Hashed SSH Key ${index + 1}:`);
-            console.log(currentHashedKey);
             hashedKeys.push(currentHashedKey);
         } catch (error) {
             console.error(`Error processing key ${index + 1}: ${error.message}`);
         }
         });
         // Build the Merkle tree
-        console.log('Merkle tree built with hashedKeys', hashedKeys);
         const merkleRoot = merkleTree(hashedKeys);
         return {
             root: merkleRoot,
@@ -100,7 +88,7 @@ function processKeysAndBuildMerkleTreeForMsghash(data, message, R) {
         const publicKeys = Object.values(data.contributors).flatMap(contributor => 
             contributor.publicKeys
                 .filter(key => key.type === 'RSA' || key.type === 'ED25519')
-                .map(key => key.key)
+                //.map(key => key.key)
         );  
 
         //console.log(`Found ${rsaKeys.length} RSA keys to process`);
@@ -119,7 +107,6 @@ function processKeysAndBuildMerkleTreeForMsghash(data, message, R) {
         });
         // Build the Merkle tree
         const merkleRoot = merkleTree(hashedMessages);
-        console.log('Merkle tree built with hashedMessages', hashedMessages);
         return {
             root: merkleRoot,
             keys:hashedMessages

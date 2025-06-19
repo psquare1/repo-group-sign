@@ -2,11 +2,32 @@ import { groth16 } from "snarkjs";
 import { Buffer } from "buffer"
 
 
-const ED25519_DEFAULT_SIG = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
-9a3OEMBVt8hP5+YVsAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
-OQAAAEC7hvyp6fP/ZvxApJrtXVLrlp00zfuS1Tdb71xT/RMJQC5BoPFz042FDdp86/2jig
-ju2ryEdC2IuJORPutGoxsD`.trim();
-const RSA_DEFAULT_SIG = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/WzBvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMjqSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZcMx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3YaZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hltAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMdZw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFEcI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTOoXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEdJh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW+u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHkKlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEbHue5Ug`;
+const ED25519_DEFAULT_SIG = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgUCQmQQJ/YZx5sYzOo1B2jIatrS
+VnmFUyrAU68EkvGeoAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
+OQAAAEBYeLSoInmSXk0WqpMv8AtWz/m0641Yuyo1ssueTiOBEc3mGLL07W7mrw5KyE9Loh
+1N5+kzrcxJVCleR73+MRcI`.trim();
+const RSA_DEFAULT_SIG = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBALj6oPz4VgbrZENVPMyNTk
+xoNT4Ws2zmDNHRKQNCC8XscZrEYGU1zBam4WFt+MrJpIOXgBdGUIASO1UIaZ8l0DPROaaV
+nyhAvN2oq5xCYKPqY/hpuxHScN84PEqWSHh6qW4QsGmKKSXiCggvkhJsi6O/ySwqPwJc7J
+oJLNyEPFfx3Kbg8e5eMpO1f9mqtJx3MFpGUxEfUv9fzqs/c8s2Y6SUH22pjrNEVcVy++ex
+maLezwGRvBlbWOrFHjp1b6n5c6uPSq1L2t8TwR5TS6JKSjpVayDr0sZbMlUghIT6B5A+o3
+gl3G9rW7HJAhLqGN3nt52VHEKCuvLKKfXax4JZqtK1lPYTfSjetOkgraUNcdvWBPF9MEFU
+d1Sr/IpxEAHFiZBXzcv5317Bx4EGigIDL1yc1o1wpx6hQiLngKzKQ+SZRwMvbIkmSQvghT
+6cpVkTCm7BuXfGVsgODP8ehgjfvKCxc48c5k5rNnuumnukO/KkiJagV5+ie6FIxU4wkPA8
+6CXVrtyfSjZOYaQYHsTS4f/+eJKWDJD8w9rA64nOT8dQphZrnqrq0fnLI+QcQzcNFNkvQA
+4zKIiIbhMWvEYL989gLsltSQSnzyimD06AlBH1doi/zX68CGos16owl6WVeLalo2kbm0jo
+v+1kEFQbMZ49Et5lEIw4O/hC31yKchu1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAA
+AMcnNhLXNoYTItNTEyAAACAEfU2Bp6qJMWhU5MmAPOuhVTxd2Px6m8wgBAaRkDTFr/ca7l
+IT/pAVk+qxK+fq/KtdqNqajFKM8URq1wP1Jq/BGPpEJ1ZI1GQEK3ONvA8YzEMhQ4cWXQwi
+U06zRhsab+4+RoUQLFvFfxuYOu1GUwVXm6Md2TxNHcHQZ9Aii4WDT9DuRxd1PwCcsymytb
+Ynb4JCtj/BW1/jWFYr4KnG+7MQ53PZ17krN09SqAew6svzqQk4WUigknCQuN+XPX/vq9q/
+6PqbDQYk6feN1xLiS5mNmJgQdZmeCrYIpG2nOzToQw9dmYnFob59LR1HBtP8TiVT7mDybS
+SWQj/lJ9mnBRgbo2Rf/tMKoaWKw2hZYClnakBXYygvEmJmB2nBGG/1S3OQ+wBqOZ6ZhS4y
+BGwLiGKPth+4/Dn7HLuYCP7iGztXZzeyYIrun9SBAI+DYVkVmlXaUJ+wK8Ka/Xlg63IHlN
+xPaolD3g02oF4CLA4SgE+6msTepDB8RsatGFMFfuR2PwczKrobfsJXDg+CQjKmpTk9J4Jt
+XJyZz0fSxZvR1O6N7LrXOkdM/l3a3Yt4dWUnSx9OGsgvf2z+8IU/8JNAKVNsnJjBYGAAVl
+fLX7UlAjc179pE4xSZkvZgCknedPHdZBQsBJLEyYSlLNZpfHC4KWONNwlgiZQbmGTY3Smz
+591e2g`.trim();
 
 document.addEventListener('DOMContentLoaded', function() {
     const actionButton = document.getElementById('actionButton');
@@ -66,7 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 timeoutPromise
             ]);
             
-            console.log('Message:', message.toString());
             const chunks = splitBigIntToChunks(messageAsBigInt);
             
             // Ensure we have valid chunks before returning
@@ -81,18 +101,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function processSSHSignature (signature) {
+    async function processSSHSignature (signature, message) {
         if (!signature) {
             return;
         }
         const algo = getSignatureAlgo(signature);
         let parsed = { 
-            ...reduceToCurveMultiplication(ED25519_DEFAULT_SIG), 
+            ...reduceToCurveMultiplication(ED25519_DEFAULT_SIG, message), 
             ...parseRSASignature(RSA_DEFAULT_SIG) 
         };
         
         if (algo === 'ssh-ed25519') {   
-            const ed25519Parsed = reduceToCurveMultiplication(signature);
+            const ed25519Parsed = reduceToCurveMultiplication(signature, message);
             parsed = {
                 ...parsed,
                 s: ed25519Parsed.s,
@@ -187,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to process and display signature
-    async function processSignature(signature) {
+    async function processSignature(signature, message) {
         if (!signature) {
             return;
         }
@@ -202,11 +222,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Process the signature with timeout
             parsed = await Promise.race([
-                processSSHSignature(signature),
+                processSSHSignature(signature, message),
                 timeoutPromise
             ]);
             
-            console.log('Parsed signature:', parsed);
             
             if (!parsed) {
                 throw new Error('Failed to parse signature');
@@ -300,19 +319,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (isVerifyMode) {
                 // Verify mode
-                const proof = JSON.parse(input);
-                console.log(proof);
+                let proof = JSON.parse(input);
                 const parsedHashedMessage = await processMessage(message);
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
-                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, Buffer.from(rValue, "hex"));
+                const r_bytes = Buffer.from(rValue, "hex");
+                const processedKeysandMerkleTreeForMsghash = processKeysAndBuildMerkleTreeForMsghash(data, message, r_bytes);
                 const merkleTreeRootForMsghash = processedKeysandMerkleTreeForMsghash.root;
-
+                const R_weierstrass = R_enc_to_R(r_bytes);
                 const vkey = await fetch("circuit_files/verification_key.json").then( function(res) {
                     return res.json();
                 });
-                const publicSignals = [...parsedHashedMessage, merkleTreeRoot.data, merkleTreeRootForMsghash.data];
-                
+                const publicSignals = [...parsedHashedMessage, merkleTreeRoot.data, merkleTreeRootForMsghash.data, ...(split256BitIntegerTo64(R_weierstrass.x).map(b => b.toString())), ...(split256BitIntegerTo64(R_weierstrass.y).map(b => b.toString()))];
+                //const publicSignals = [merkleTreeRootForMsghash.data, ...(split256BitIntegerTo64(R_weierstrass.x).map(b => b.toString())), ...(split256BitIntegerTo64(R_weierstrass.y).map(b => b.toString()))];
                 console.log(publicSignals);
                 const isValid = await groth16.verify(vkey, publicSignals, proof);
                 resultMessage.textContent = isValid ? 'Proof Verified Successfully!' : 'Proof Verification Failed';
@@ -321,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // Generate mode
                 const parsedHashedMessage = await processMessage(message);
-                const processedSignature = await processSignature(input);
+                const processedSignature = await processSignature(input, message);
                 const parsedRSASignature = processedSignature.signature;
                 const parsedRSAPublicKey = processedSignature.publicKey;
                 const parsedED25519Signature_s = processedSignature.s;
@@ -331,13 +350,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const signatureAlgo = processedSignature.algo;
                 const parsedED25519_R_enc = processedSignature.R_enc;
                 const parsedED25519_pk_enc = processedSignature.pk_enc;
-
                 // Display the R value
                 const rOutput = document.getElementById('rOutput');
                 rOutput.value = JSON.stringify(parsedED25519_R_enc.toString('hex'), null, 2);
-
                 const hashedKey = hashArray([...parsedRSAPublicKey, ...parsedED25519_A.x, ...parsedED25519_A.y]);
-                console.log('HASHED KEY', hashedKey);
                 //todo add ed25519 public key to processKeysAndBuildMerkleTree
                 const processedKeysandMerkleTree = processKeysAndBuildMerkleTree(data);
                 const merkleTreeRoot = processedKeysandMerkleTree.root;
@@ -350,12 +366,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const hashedKeysForMsghash = processedKeysandMerkleTreeForMsghash.keys;
                 const h = processPublicKeyForMsghash(parsedED25519_pk_enc, message, parsedED25519_R_enc);
                 const hashedMsghash = hashArray(split256BitIntegerTo64(h));
-                //console.log('hashedMsghash', hashedMsghash);
-                //console.log('index: ', hashedKeysForMsghash.indexOf(hashedMsghash));
                 const [calculatedMerkleProofForMsghash, merkleDirectionsTFForMsghash] = await merkleProof(merkleTreeRootForMsghash, hashedMsghash, hashedKeysForMsghash.indexOf(hashedMsghash));
                 const merkleDirectionsForMsghash = merkleDirectionsTFForMsghash.map((x) => x ? "1" : "0");
-                console.log("parsedED25519_R", parsedED25519_R);
-                console.log("INPUTS", {
+                console.log("INPUTS", JSON.stringify({
                     message: parsedHashedMessage,
                     signature: parsedRSASignature,
                     correctKey: parsedRSAPublicKey,
@@ -367,12 +380,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     msghashTreeProofs: calculatedMerkleProofForMsghash,
                     msghashTreeDirections: merkleDirectionsForMsghash,
                     
-                    s: parsedED25519Signature_s,
-                    R: [parsedED25519_R.x, parsedED25519_R.y],
-                    m: parsedED25519_h,
-                    A: [parsedED25519_A.x, parsedED25519_A.y],
+                    s: parsedED25519Signature_s.map(b => b.toString()),
+                    R: [parsedED25519_R.x.map(b => b.toString()), parsedED25519_R.y.map(b => b.toString())],
+                    m: parsedED25519_h.map(b => b.toString()),
+                    A: [parsedED25519_A.x.map(b => b.toString()), parsedED25519_A.y.map(b => b.toString())],
                     
-                });
+                }, null, 2));
                 const { proof, publicSignals } = await groth16.fullProve({
                     message: parsedHashedMessage,
                     signature: parsedRSASignature,
@@ -393,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, "circuit_files/circuit.wasm", "circuit_files/circuit_final.zkey");
 
                 // Display the proof
-                const proofStr = JSON.stringify(proof, null, 2);
+                const proofStr = JSON.stringify({proof:proof, publicSignals:publicSignals}, null, 2);
 
                 resultMessage.innerHTML = `
                     <div class="alert alert-success text-center mb-4">
@@ -426,37 +439,42 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (modeToggle.checked) {
             // Verify mode
-            signatureInput.value = `{
-  "pi_a": [
-    "2087816746059447378613789863274171259955441565100867431687607166526213851626",
-    "45262406362907528750070471807415002638149226887668432177363135831808643290",
-    "1"
-  ],
-  "pi_b": [
-    [
-      "19965353234120306143391199371005958432150949802662795651713269690765962120242",
-      "16808042615410842339135962245268752563507787134887832251905046661912270898217"
+            signatureInput.value = `
+{
+    "pi_a": [
+      "11287617555005531314307598695521687255870840654989007139356484446189556764997",
+      "3522590115965740844744497810120719570701349321901000828747194512538242548283",
+      "1"
     ],
-    [
-      "7470543474023249126992756947356802688766728401791962016458074213854977415270",
-      "2930904658534389389614780738614406021966148062555037350220656329753951602420"
+    "pi_b": [
+      [
+        "12919536697313723705478798888353702522901806641407830717994355723789562715682",
+        "5953109678605024206108900660985911426124989571311366271407730470489072498917"
+      ],
+      [
+        "20839985050101043585462517064450311864279277096735555310122594308064986253955",
+        "8249457606177971987827449563293440084179863349043198696381428789233468905645"
+      ],
+      [
+        "1",
+        "0"
+      ]
     ],
-    [
-      "1",
-      "0"
-    ]
-  ],
-  "pi_c": [
-    "13022010164535466054584048196755925960469404079368849456065147331990151959473",
-    "21250807891549099311602617214656054329993945948190668318077879021131129902838",
-    "1"
-  ],
-  "protocol": "groth16",
-  "curve": "bn128"
-}`;
+    "pi_c": [
+      "11674263771239781116100933362080920192116200378307521959995778201573644282477",
+      "16390729114952418824971257673716434061765101560598380314193611351987585444964",
+      "1"
+    ],
+    "protocol": "groth16",
+    "curve": "bn128"
+  }`;
+rInput.value = "5878b4a82279925e4d16aa932ff00b56cff9b4eb8d58bb2a35b2cb9e4e238111";
         } else {
             // Generate mode
-            signatureInput.value = `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/WzBvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMjqSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZcMx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3YaZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hltAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMdZw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFEcI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTOoXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEdJh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW+u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHkKlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEbHue5Ug`;
+            signatureInput.value = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgbioQPTTkiqMF+czNN5aIigXs1M
+6/mB158ZN69E21/4IAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
+OQAAAEAA/hLYJk1jAdQJz26hrjHkGrqExY+7S4n3dxDMUBgezhw+sWtKAauP0kw39CYrYI
+1fgBmVcvlzy0Q0BqFyU20B`.trim()
         }
         
         // Trigger auto-resize after setting values
@@ -464,3 +482,5 @@ document.addEventListener('DOMContentLoaded', function() {
         autoResizeTextarea(signatureInput);
     });
 }); 
+
+// Valid RSA Signature: `U1NIU0lHAAAAAQAAAhcAAAAHc3NoLXJzYQAAAAMBAAEAAAIBAMeroewqNQMc3NrpCXX/WzBvDUB/b27cv3+lIu3EH+CUyNfcP6cV/rpH9HYAhVEpnn50vIrDFZs1Rf0k1te/inCNQKMjqSHSSFNE6XUy29BXSNFda/YoUyDhtfJv/69m9XEZBnCCO3Lx3pVnG1j1LaKn00rhftceZcMx5dvB4euWUkzdWQLpk11qwtdGv+I1/cmgy5ETFgLkJj2RDZEtVtq/cBEX+R2GV9CwHwZ3lJ/E2QPYY0N2knwQCmA0AGm63qc4LziXO1erIpaMVUAsPx2mWrRHlQbjBDFuJYgoORtF3YaZbJdUrW39Tf0BWFZsutmRn9VX+1mZctbEMmuIAU1zXrymBXeCdjyLJibed+LnzGPVe6hltAutWMVij9dBaMGQi+/p5VkBhOnmoPAsUAfhgHuk9cTiMLJtnR+JuE5dKlKi9BscaOQQ79Ih69gEmysqdmp+nOZbs3kNxz+7lidJt0EYmhkCTBwwxmmRrY1xagHORQWz/5MU/OFDh0d+mYcqsONYk9eAxCZhPEOg8Nn/LsvgcUO05NoTS8RHwQ4OImk36lCdN5ql/dy1GU1uu3zh9l5fQsw/Lp8q8sXYU2eVWESrFeduDWPG6Y34dp5vrLoWW/oRHLM+LXPJzYdjezD010DEkbzk78tqIlBmJo01TEjQQW/znoVUoLQ2VPd1AAAABGZpbGUAAAAAAAAABnNoYTUxMgAAAhQAAAAMcnNhLXNoYTItNTEyAAACAIR3B+M+wyOfyw6wNVLiSCp5AjEcs6zczGpSSl8ExxLQ7nMdZw9oL20Z39mq8Hfv8bbXOntUqqRk2hFH8D5HiDzqEELNVps4BqRgrOC7u0LMlTs6CPWBFEcI4FP4uzS36+uOppVln7XMYNZX3iVTVSjKcB5EBxpCULoqfNN8ee/t0/bq1ZCRazYvzlTOoXQf6iEgeTQTaR9xLDh3YueVUZRWfl4p2PhgKdawH56BXk9T6trIMzMIhuAH5qxJ4ZyrEdJh4qgg5KKDzkN/k5w3Is1bTgTNzGOBqN5EFXIizWt5xInbCo9diGT6zjyFjxLSWm+79KrW+u0aq7zwdwBKzBBM5oiymAFfCMllxY2NaqHdgQ1xMqk9FOyBCFVnqBDzGhApTMHlaWoEHkKlB49RmURUItcn09fzCxmXiP267dgf9lvTkvpDqQkQpRe02vhAOWRYTIer+AtWLeIFYvE5N6GDR9guXww9+Ka9Hn+xm2jrkqFXuD2y33h0P2NlD3t3EMyatvfPeGwWwGh6upg++BWXU+1QvFjWQup0fXH60utOcdGauMn42jf7Ifwg/MpICBRaYkmcrJfzYRD5DTiSy9svk0Bt4vy1iUlBrRY8FrBLEy3CurvpAx+o1I/i0smCHTAebx7U7NmmedC12O3fqS7jpD8E3h5jIGfuEbHue5Ug`;

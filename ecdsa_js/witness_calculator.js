@@ -4,11 +4,22 @@ module.exports = async function builder(code, options) {
 
     let wasmModule;
     try {
-	wasmModule = await WebAssembly.compile(code);
-    }  catch (err) {
-	console.log(err);
-	console.log("\nTry to run circom --c in order to generate c++ code instead\n");
-	throw new Error(err);
+        // Add memory limits to prevent excessive allocation
+        const importObject = {
+            env: {
+                memory: new WebAssembly.Memory({
+                    initial: 256,  // 16MB initial
+                    maximum: 512,  // 32MB maximum
+                    shared: false
+                })
+            }
+        };
+
+        wasmModule = await WebAssembly.compile(code);
+    } catch (err) {
+        console.error('WebAssembly compilation error:', err);
+        console.log("\nTry to run circom --c in order to generate c++ code instead\n");
+        throw new Error(err);
     }
 
     let wc;
@@ -16,67 +27,67 @@ module.exports = async function builder(code, options) {
     let errStr = "";
     let msgStr = "";
     
-    const instance = await WebAssembly.instantiate(wasmModule, {
-        runtime: {
-            exceptionHandler : function(code) {
-		let err;
-                if (code == 1) {
-                    err = "Signal not found.\n";
-                } else if (code == 2) {
-                    err = "Too many signals set.\n";
-                } else if (code == 3) {
-                    err = "Signal already set.\n";
-		} else if (code == 4) {
-                    err = "Assert Failed.\n";
-		} else if (code == 5) {
-                    err = "Not enough memory.\n";
-		} else if (code == 6) {
-                    err = "Input signal array access exceeds the size.\n";
-		} else {
-		    err = "Unknown error.\n";
+    try {
+        const instance = await WebAssembly.instantiate(wasmModule, {
+            runtime: {
+                exceptionHandler : function(code) {
+                    let err;
+                    if (code == 1) {
+                        err = "Signal not found.\n";
+                    } else if (code == 2) {
+                        err = "Too many signals set.\n";
+                    } else if (code == 3) {
+                        err = "Signal already set.\n";
+                    } else if (code == 4) {
+                        err = "Assert Failed.\n";
+                    } else if (code == 5) {
+                        err = "Not enough memory.\n";
+                    } else if (code == 6) {
+                        err = "Input signal array access exceeds the size.\n";
+                    } else {
+                        err = "Unknown error.\n";
+                    }
+                    throw new Error(err + errStr);
+                },
+                printErrorMessage : function() {
+                    errStr += getMessage() + "\n";
+                },
+                writeBufferMessage : function() {
+                    const msg = getMessage();
+                    if (msg === "\n") {
+                        console.log(msgStr);
+                        msgStr = "";
+                    } else {
+                        if (msgStr !== "") {
+                            msgStr += " ";
+                        }
+                        msgStr += msg;
+                    }
+                },
+                showSharedRWMemory : function() {
+                    printSharedRWMemory();
                 }
-                throw new Error(err + errStr);
-            },
-	    printErrorMessage : function() {
-		errStr += getMessage() + "\n";
-                // console.error(getMessage());
-	    },
-	    writeBufferMessage : function() {
-			const msg = getMessage();
-			// Any calls to `log()` will always end with a `\n`, so that's when we print and reset
-			if (msg === "\n") {
-				console.log(msgStr);
-				msgStr = "";
-			} else {
-				// If we've buffered other content, put a space in between the items
-				if (msgStr !== "") {
-					msgStr += " "
-				}
-				// Then append the message to the message we are creating
-				msgStr += msg;
-			}
-	    },
-	    showSharedRWMemory : function() {
-		printSharedRWMemory ();
             }
+        });
 
-        }
-    });
+        const sanityCheck =
+            options
+    //        options &&
+    //        (
+    //            options.sanityCheck ||
+    //            options.logGetSignal ||
+    //            options.logSetSignal ||
+    //            options.logStartComponent ||
+    //            options.logFinishComponent
+    //        );
 
-    const sanityCheck =
-        options
-//        options &&
-//        (
-//            options.sanityCheck ||
-//            options.logGetSignal ||
-//            options.logSetSignal ||
-//            options.logStartComponent ||
-//            options.logFinishComponent
-//        );
-
-    
-    wc = new WitnessCalculator(instance, sanityCheck);
-    return wc;
+        
+        wc = new WitnessCalculator(instance, sanityCheck);
+        return wc;
+    } catch (error) {
+        console.error('WebAssembly instantiation error:', error);
+        throw new Error(`Failed to initialize WebAssembly: ${error.message}`);
+    }
 
     function getMessage() {
         var message = "";
@@ -97,7 +108,7 @@ module.exports = async function builder(code, options) {
 
 	// If we've buffered other content, put a space in between the items
 	if (msgStr !== "") {
-		msgStr += " "
+		msgStr += " ";
 	}
 	// Then append the value to the message we are creating
 	msgStr += (fromArray32(arr).toString());

@@ -106,46 +106,63 @@ function bytes2hex(bytes) {
 
 // converts text message to BigInt m
 async function messageToBigInt(msgStr) {
-  const msgBytes    = str2bytes(msgStr);
-  const MAGIC       = str2bytes('SSHSIG');
-  const NAMESPACE   = str2bytes('file');
-  const HASHALG     = str2bytes('sha512');
-  const k           = 512;  // modulus length in bytes
-  
-  // 1) inner hash: H1 = SHA512(msg)
-  const H1 = await sha512(msgBytes);
+  try {
+    const msgBytes = str2bytes(msgStr);
+    const MAGIC = str2bytes('SSHSIG');
+    const NAMESPACE = str2bytes('file');
+    const HASHALG = str2bytes('sha512');
+    const k = 512;  // modulus length in bytes
+    
+    // 1) inner hash: H1 = SHA512(msg)
+    const H1 = await sha512(msgBytes);
 
-  // 2) wrapper = MAGIC || sshString(NAMESPACE) || sshString(empty) || sshString(HASHALG) || sshString(H1)
-  const wrapper = concat(
-    MAGIC,
-    sshString(NAMESPACE),
-    sshString(new Uint8Array(0)),
-    sshString(HASHALG),
-    sshString(H1)
-  );
+    // 2) wrapper = MAGIC || sshString(NAMESPACE) || sshString(empty) || sshString(HASHALG) || sshString(H1)
+    const wrapper = concat(
+      MAGIC,
+      sshString(NAMESPACE),
+      sshString(new Uint8Array(0)),
+      sshString(HASHALG),
+      sshString(H1)
+    );
 
-  // 3) digestInfo prefix for SHA-512 (ASN.1 DER header)
-  const digestinfoPrefix = hex2bytes('3051300d060960864801650304020305000440');
+    // 3) digestInfo prefix for SHA-512 (ASN.1 DER header)
+    const digestinfoPrefix = hex2bytes('3051300d060960864801650304020305000440');
 
-  // 4) outer hash: H2 = SHA512(wrapper)
-  const H2 = await sha512(wrapper);
+    // 4) outer hash: H2 = SHA512(wrapper)
+    const H2 = await sha512(wrapper);
 
-  // 5) digestinfo = prefix || H2
-  const digestinfo = concat(digestinfoPrefix, H2);
+    // 5) digestinfo = prefix || H2
+    const digestinfo = concat(digestinfoPrefix, H2);
 
-  // 6) build EM = 0x00‖0x01‖PS‖0x00‖digestinfo
-  const psLen = k - 3 - digestinfo.length;
-  const PS    = new Uint8Array(psLen).fill(0xff);
-  const EM    = concat(
-    new Uint8Array([0x00, 0x01]),
-    PS,
-    new Uint8Array([0x00]),
-    digestinfo
-  );
+    // 6) build EM = 0x00‖0x01‖PS‖0x00‖digestinfo
+    const psLen = k - 3 - digestinfo.length;
+    
+    // Ensure we don't try to allocate an invalid buffer size
+    if (psLen <= 0) {
+      throw new Error('Invalid padding length calculated');
+    }
+    
+    const PS = new Uint8Array(psLen).fill(0xff);
+    const EM = concat(
+      new Uint8Array([0x00, 0x01]),
+      PS,
+      new Uint8Array([0x00]),
+      digestinfo
+    );
 
-  let output = BigInt("0x" + bytes2hex(EM));
-  console.log(typeof output);
-  return output;
+    // Convert to hex string in chunks to avoid memory issues
+    const hexChunks = [];
+    for (let i = 0; i < EM.length; i += 1024) {
+      const chunk = EM.slice(i, i + 1024);
+      hexChunks.push(bytes2hex(chunk));
+    }
+    
+    const output = BigInt("0x" + hexChunks.join(''));
+    return output;
+  } catch (error) {
+    console.error('Error in messageToBigInt:', error);
+    throw new Error(`Failed to process message: ${error.message}`);
+  }
 }
 
 function parseRSASignature(b64) {

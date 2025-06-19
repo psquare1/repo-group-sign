@@ -6,7 +6,6 @@ const MAX_SIZE = 7;
 
 function hashArray(input, size = 35) {
     var hval = "0";
-    console.log('Input array:', input);
     for (var i = 0; i < input.length; i++) {
         hval = poseidon2([hval, input[i]]).toString();
     }
@@ -15,8 +14,6 @@ function hashArray(input, size = 35) {
 
 // Compute and log the hash
 // const hash = hashArray(input, 35);
-// console.log('Input array length:', input.length);
-// console.log('Final hash:', hash);
 
 class MerkleNode {
     constructor(data, l_index, r_index, is_root = false) {
@@ -62,12 +59,7 @@ function merkleTree(data) {
  * a True direction means that the value is in the right subtree and we must hash left child's data with val.
  */
 function merkleProof(tree, val, index) {
-    //console.log("tree.data: ", tree.data);
-    //console.log("tree.l_index: ", tree.l_index, "tree.r_index: ", tree.r_index);
-    //console.log("val: ", val);
     if (tree.left === null && tree.right === null) {
-        //console.log("val: ", val);
-        //console.log("tree.data: ", tree.data);
         if (val === tree.data) {
             return [[], []];
         }

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e  # Exit on any error
-
+# increase heap size
+export NODE_OPTIONS="--max-old-space-size=8192" 
 # Step 1: Compile the circom circuit
 echo "Step 1: Compiling the circom circuit..."
 circom --r1cs --wasm --c --sym --inspect circuit.circom -l node_modules > error.txt

@@ -5,20 +5,20 @@
  * Hard-coded inputs below are just examples; replace at will.
  */
 "use strict";
-//  const { assert } = require("console");
-//  const crypto = require("crypto");
+// const { assert } = require("console");
+// const crypto = require("crypto");
 const assert = console.assert.bind(console);
 import { Buffer } from "buffer"
 import crypto from "crypto"
 
 /* ─────── hard-coded demo data ─────────────────────────────────────────────── */
-const SIG_TEXT = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgnWXtFXVQ4Aw9CU/cyP10dlnGG1
-9a3OEMBVt8hP5+YVsAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
-OQAAAEC7hvyp6fP/ZvxApJrtXVLrlp00zfuS1Tdb71xT/RMJQC5BoPFz042FDdp86/2jig
-ju2ryEdC2IuJORPutGoxsD`.trim();
+const SIG_TEXT = `U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgbioQPTTkiqMF+czNN5aIigXs1M
+6/mB158ZN69E21/4IAAAAEZmlsZQAAAAAAAAAGc2hhNTEyAAAAUwAAAAtzc2gtZWQyNTUx
+OQAAAEAA/hLYJk1jAdQJz26hrjHkGrqExY+7S4n3dxDMUBgezhw+sWtKAauP0kw39CYrYI
+1fgBmVcvlzy0Q0BqFyU20B`.trim();
 
-const MESSAGE = "0xPARC\n";               // ← exactly what was signed
-const PUB_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ1l7RV1UOAMPQlP3Mj9dHZZxhtfWtzhDAVbfIT+fmFb duruozer13@gmail.com";
+const MESSAGE = "0xPARC";               // ← exactly what was signed
+const PUB_KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG4qED005IqjBfnMzTeWiIoF7NTOv5gdefGTevRNtf+C";
 
 /* ─────── constants & tiny helpers ─────────────────────────────────────────── */
 const l = (1n << 252n) + 27742317777372353535851937790883648493n; // Ed25519 ℓ
@@ -125,6 +125,8 @@ function createEncodedMessage(message, pkBytes, R_enc){
                        .update(Buffer.concat([R_enc, pkBytes, wrapper]))
                        .digest();
   const h = bytesLEtoBigInt(hBytes) % l;
+  console.log("pkBytes :", pkBytes.toString('hex'));
+  console.log("h:", h.toString());
   return h;
 }
 
@@ -146,7 +148,7 @@ function createEncodedMessage(message, pkBytes, R_enc){
 *   h:BigInt
 * }}
 */
-function buildVerifyContext(sigText, message = MESSAGE) {
+function buildVerifyContext(sigText, message) {
   /* 1. Parse outer SSHSIG structure ---------------------------------------- */
   const lines   = sigText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const bodyB64 = lines.filter(l => !l.startsWith("-----")).join("");
@@ -193,7 +195,6 @@ function buildVerifyContext(sigText, message = MESSAGE) {
     writeSSHString(hAlg.data),
     writeSSHString(digest),
   ]);
-  console.log("wrapper:", wrapper.toString());
   /* 5. Compute h = SHA-512(R || A || wrapper) mod ℓ ------------------------ */
   /*
   const hBytes = crypto.createHash("sha512")
@@ -201,8 +202,6 @@ function buildVerifyContext(sigText, message = MESSAGE) {
                        .digest();
   const h = bytesLEtoBigInt(hBytes) % l; */
   const h = createEncodedMessage(message, pkBytes.data, R_enc);
-  //console.log("h:", h.toString(16));
-  // console.log("Created h:", createEncodedMessage(MESSAGE, pkBytes.data, R_enc).toString(16));
   return {
     version,
     namespace : nsRaw.data,
@@ -551,8 +550,19 @@ function scalarMultiplyWeierstrass(k, P) {
   return result;
 }
 
-function reduceToCurveMultiplication(signature) {
-  const ctx = buildVerifyContext(signature);
+function verifyReduction(s, h, A, R){
+  let B = basePointEdwards;
+  let B_montgomery = convertToMontgomery(B.x, B.y);
+  let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
+  const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
+  const R_plus_hA = addPointsWeierstrass(R, scalarMultiplyWeierstrass(h, A));
+  console.log("sB:", sB_weierstrass);
+  console.log("R + hA:", R_plus_hA);
+  console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
+}
+
+function reduceToCurveMultiplication(signature, message) {
+  const ctx = buildVerifyContext(signature, message);
   let R_enc = ctx.R_enc;
   let R = decodePoint(R_enc);
 
@@ -563,19 +573,17 @@ function reduceToCurveMultiplication(signature) {
   let pk = decodePoint(pk_enc);
 
   let h = ctx.h;
-  //console.log("Computed h as BigInt:", h);
 
   let R_montgomery = convertToMontgomery(R.x, R.y);
   let pk_montgomery = convertToMontgomery(pk.x, pk.y);
   let R_weierstrass = convertToWeierstrass(R_montgomery.x, R_montgomery.y);
   let pk_weierstrass = convertToWeierstrass(pk_montgomery.x, pk_montgomery.y);
-  //console.log("Public key as Weierstrass curve point:", pk_weierstrass);
 
   let B = basePointEdwards;
   let B_montgomery = convertToMontgomery(B.x, B.y);
   let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
   const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
-
+  verifyReduction(s, h, pk_weierstrass, R_weierstrass);
   // should satisfy sB = R + hA
   return {
     s: s,
@@ -587,6 +595,12 @@ function reduceToCurveMultiplication(signature) {
   }
 }
 
+function R_enc_to_R(R_enc){
+  let R = decodePoint(R_enc);
+  let R_montgomery = convertToMontgomery(R.x, R.y);
+  let R_weierstrass = convertToWeierstrass(R_montgomery.x, R_montgomery.y);
+  return R_weierstrass;
+}
 
 function reduceED25519PubKeyToCurve(pubKey) {
   const {key, comment, algName} = parsePublicEd25519Key(pubKey);
@@ -617,31 +631,32 @@ function split256BitIntegerTo64(n) {
 }
 
 /* ─────── quick demo (run `node build_verify_context.js`) ─────────────────── */
-/*
-if (require.main === module) {
-  const {s, R, h, A} = reduceToCurveMultiplication(SIG_TEXT);
-  console.log("Signature scalar (s):", split256BitIntegerTo64(s));
-  console.log("R point on Weierstrass curve:", [split256BitIntegerTo64(R.x), split256BitIntegerTo64(R.y)]);
-  console.log("h:", split256BitIntegerTo64(h));
-  console.log("Public key point on Weierstrass curve:", [split256BitIntegerTo64(A.x), split256BitIntegerTo64(A.y)]);
-  const pubKeyA = reduceED25519PubKeyToCurve(PUB_KEY).A;
-  console.log("Extracted public key point from shh public key on Weierstrass curve: ", [split256BitIntegerTo64(pubKeyA.x), split256BitIntegerTo64(pubKeyA.y)]);
-  // verify that sB = R + hA
-  let B = basePointEdwards;
-  let B_montgomery = convertToMontgomery(B.x, B.y);
-  let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
-  const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
-  const R_plus_hA = addPointsWeierstrass(R, scalarMultiplyWeierstrass(h, A));
-  console.log("sB:", sB_weierstrass);
-  console.log("R + hA:", R_plus_hA);
-  console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
-}
-*/
+
+// if (require.main === module) {
+//   const {s, R, h, A} = reduceToCurveMultiplication(SIG_TEXT);
+//   console.log("Signature scalar (s):", split256BitIntegerTo64(s));
+//   console.log("R point on Weierstrass curve:", [split256BitIntegerTo64(R.x), split256BitIntegerTo64(R.y)]);
+//   console.log("h:", split256BitIntegerTo64(h));
+//   console.log("Public key point on Weierstrass curve:", [split256BitIntegerTo64(A.x), split256BitIntegerTo64(A.y)]);
+//   const pubKeyA = reduceED25519PubKeyToCurve(PUB_KEY).A;
+//   console.log("Extracted public key point from shh public key on Weierstrass curve: ", [split256BitIntegerTo64(pubKeyA.x), split256BitIntegerTo64(pubKeyA.y)]);
+//   // verify that sB = R + hA
+//   let B = basePointEdwards;
+//   let B_montgomery = convertToMontgomery(B.x, B.y);
+//   let B_weierstrass = convertToWeierstrass(B_montgomery.x, B_montgomery.y);
+//   const sB_weierstrass = scalarMultiplyWeierstrass(s, B_weierstrass);
+//   const R_plus_hA = addPointsWeierstrass(R, scalarMultiplyWeierstrass(h, A));
+//   console.log("sB:", sB_weierstrass);
+//   console.log("R + hA:", R_plus_hA);
+//   console.log("Verification:", sB_weierstrass.x === R_plus_hA.x && sB_weierstrass.y === R_plus_hA.y);
+// }
+
 window.reduceToCurveMultiplication = reduceToCurveMultiplication;
 window.getSignatureAlgo = getSignatureAlgo;
 window.split256BitIntegerTo64 = split256BitIntegerTo64;
 window.reduceED25519PubKeyToCurve = reduceED25519PubKeyToCurve;
 window.createEncodedMessage = createEncodedMessage; 
 window.parsePublicEd25519Key = parsePublicEd25519Key;
+window.R_enc_to_R = R_enc_to_R;
 
 
